@@ -70,3 +70,8 @@ obj-$(CONFIG_MEMORY_STATE_TIME) += memory_state_time.o
 # Huaqin add for ZQL1650-86 by liunianliang at 2018/02/09 start
 obj-y                           += huaqin/
 # Huaqin add for ZQL1650-86 by liunianliang at 2018/02/09 end
+
+# TODO: remove me b/62057517
+subdir-ccflags-y += \
+	-Wno-ignored-attributes \
+	-Wno-header-guard
