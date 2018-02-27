@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,13 +27,6 @@
 #include "config.h"
 
 struct tfa_device;
-struct tfa_hal_dev;  /* Opaque type to hold hal handle, unused for linux */
-
-#if defined(__linux__) && defined(__KERNEL__)
-struct tfa_hal_dev {
-	void *handle;
-};
-#endif
 
 /*
  * hw/sw feature bit settings in MTP
@@ -77,7 +70,6 @@ struct tfa_device_ops {
 	enum Tfa98xx_Error (*set_mute)(struct tfa_device *tfa, int mute); /**< set mute */
 	enum Tfa98xx_Error (*faim_protect)(struct tfa_device *tfa, int state); /**< Protect FAIM from being corrupted  */
 	enum Tfa98xx_Error(*set_osc_powerdown)(struct tfa_device *tfa, int state); /**< Allow to change internal osc. gating settings */
-	enum Tfa98xx_Error(*set_calib_state)(struct tfa_device *tfa); /**< Set device into operating state with cf disabled */
 };
 
 /**
@@ -146,7 +138,6 @@ struct tfa_device {
 	int is_probus_device; /**< probus device: device without internal DSP */
 	int needs_reset; /**< add the reset trigger for SetAlgoParams and SetMBDrc commands */
 	struct kmem_cache *cachep;	/**< Memory allocator handle */
-	struct tfa_hal_dev *hal;  /* Device HAL plugin handle */
 };
 
 /**

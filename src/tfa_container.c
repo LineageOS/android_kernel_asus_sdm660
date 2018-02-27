@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -667,6 +667,12 @@ enum Tfa98xx_Error tfaContWriteFile(struct tfa_device *tfa,  nxpTfaFileDsc_t *fi
 		} else {
 			err = tfaContWriteVstep(tfa, (nxpTfaVolumeStep2File_t *)hdr, vstep_idx);
 		}
+
+		/* If writing the vstep was succesfull, set new current vstep */
+		if(err == Tfa98xx_Error_Ok) {
+			tfa->vstep = vstep_idx;
+		}
+
 		break;
 	case speakerHdr:
 		if (tfa->tfa_family == 2) {
@@ -879,7 +885,7 @@ enum Tfa98xx_Error tfaRunWriteBitfield(struct tfa_device *tfa,  nxpTfaBitfield_t
         
 	value=bf.value;
 	bfUni.field = bf.field;
-	error = tfa_set_bf(tfa, bfUni.field, value);
+        error = tfa_set_bf(tfa, bfUni.field, value);
 
 	return error;
 }
@@ -992,6 +998,7 @@ static enum Tfa98xx_Error tfaRunWriteFilter(struct tfa_device *tfa, nxpTfaContBi
 			error = tfa_dsp_cmd_id_write(tfa, MODULE_FRAMEWORK, 4 /* param */ , sizeof(data), data);
 		}
 	}
+
 
 	/* Because we can load the same filters multiple times
 	 * For example: When we switch profile we re-write in operating mode.

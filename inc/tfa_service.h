@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,8 +27,7 @@ extern "C" {
 #ifdef TFA98XX_GIT_VERSIONS
   #define TFA98XX_API_REV_STR TFA98XX_GIT_VERSIONS
 #else
-  #warning update TFA98XX_API_REV_STR manually
-  #define TFA98XX_API_REV_STR "v0.0.0-0-g00000-changeme"
+  #define TFA98XX_API_REV_STR "v6.5.0"
 #endif
 
 #include "tfa_device.h"
@@ -690,7 +689,7 @@ enum Tfa98xx_Error tfa98xx_write_raw(struct tfa_device *tfa,
 		  	  	  const unsigned char data[]);
 
 /* support for converting error codes into text */
-//*** const char *tfa98xx_get_error_string(enum Tfa98xx_Error error);
+const char *tfa98xx_get_error_string(enum Tfa98xx_Error error);
 
 /**
  * convert signed 24 bit integers to 32bit aligned bytes
@@ -971,16 +970,6 @@ enum Tfa98xx_Error tfa_status(struct tfa_device *tfa);
  */
 int tfa_dev_get_mtpb(struct tfa_device *tfa);
 
-/* * Set manager state to operating state with coolflux disabled.
-*
-*
-*  @param[in] tfa device description structure
-*  @return Tfa98xx_Error_Ok when successfull, error otherwise.
-*/
-enum Tfa98xx_Error tfa98xx_set_calib_state(struct tfa_device *tfa);
-
-/* the ops wrapper for tfa98xx_faim_protect */
-enum Tfa98xx_Error tfa98xx_faim_protect(struct tfa_device *tfa, int state);
 #ifdef __cplusplus
 }
 #endif

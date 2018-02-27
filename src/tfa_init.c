@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -56,6 +56,7 @@ static enum Tfa98xx_Error tfa_dsp_system_stable(struct tfa_device *tfa, int *rea
 	/* check AREFS and CLKS: not ready if either is clear */
 	*ready = !((TFA_GET_BF_VALUE(tfa, AREFS, status) == 0)
 		|| (TFA_GET_BF_VALUE(tfa, CLKS, status) == 0));
+
 	return error;
 }
 
@@ -87,31 +88,6 @@ static enum Tfa98xx_Error tfa_set_osc_powerdown(struct tfa_device *tfa, int stat
 	return Tfa98xx_Error_Ok;
 }
 
-/* * Set manager state to operating state with coolflux disabled.
-*
-*  This function is a worker for tfa98xx_set_calib_state().
-*
-*  @param[in] tfa device description structure
-*  @return Tfa98xx_Error_Ok when successfull, error otherwise.
-*/
-
-static enum Tfa98xx_Error tfa_set_calib_state(struct tfa_device *tfa)
-{
-	enum Tfa98xx_Error error = Tfa98xx_Error_Ok;
-	/*generic max1 implementation*/
-	if (tfa->tfa_family == 1) {
-		TFA_SET_BF(tfa, CFE, 0);
-		tfa_set_bf(tfa, TFA1_BF_CHSA, 0);
-		TFA_SET_BF(tfa, AMPC, 0);
-		TFA_SET_BF(tfa, AMPE, 1);
-		TFA_SET_BF(tfa, PWDN, 0);
-	}
-	else {
-		pr_debug("Wrong family for this device\n");
-	}
-	return error;
-}
-
 static enum Tfa98xx_Error tfa_dsp_reset(struct tfa_device *tfa, int state)
 {
 	/* generic function */
@@ -125,7 +101,7 @@ int tfa_set_swprofile(struct tfa_device *tfa, unsigned short new_value)
 	int mtpk, active_value = tfa->profile;
 
 	/* Also set the new value in the struct */
-	tfa->profile = new_value-1;
+	tfa->profile = new_value;
 
 	/* for TFA1 devices */
 	/* it's in MTP shadow, so unlock if not done already */
@@ -147,7 +123,7 @@ static int tfa_set_swvstep(struct tfa_device *tfa, unsigned short new_value)
 	int mtpk, active_value = tfa->vstep;
 
 	/* Also set the new value in the struct */
-	tfa->vstep = new_value-1;
+	tfa->vstep = new_value;
 
 	/* for TFA1 devices */
 	/* it's in MTP shadow, so unlock if not done already */
@@ -162,6 +138,9 @@ static int tfa_set_swvstep(struct tfa_device *tfa, unsigned short new_value)
 static int tfa_get_swvstep(struct tfa_device *tfa)
 {
 	int value = 0;
+
+	if (tfa->vstep>0)
+		return tfa->vstep - 1;
 
 	/* Set the new value in the hw register */
 	value = TFA_GET_BF(tfa, SWVSTEP);
@@ -213,7 +192,6 @@ void set_ops_defaults(struct tfa_device_ops *ops)
 	ops->set_mute = tfa_set_mute_nodsp;
 	ops->faim_protect = tfa_faim_protect;
 	ops->set_osc_powerdown = tfa_set_osc_powerdown;
-	ops->set_calib_state = tfa_set_calib_state;
 }
 
 /***********************************************************************************/
@@ -234,7 +212,7 @@ static int tfanone_set_swprofile(struct tfa_device *tfa, unsigned short new_valu
 	int active_value = tfa_dev_get_swprof(tfa);
 
 	/* Set the new value in the struct */
-	tfa->profile = new_value-1;
+	tfa->profile = new_value;
 
 	/* Set the new value in the hw register */
 	swprof = new_value;
@@ -250,13 +228,15 @@ static int tfanone_get_swprofile(struct tfa_device *tfa)
 
 static int tfanone_set_swvstep(struct tfa_device *tfa, unsigned short new_value)
 {
+	int active_value = tfa_dev_get_swvstep(tfa);
+
 	/* Set the new value in the struct */
-	tfa->vstep = new_value-1;
+	tfa->vstep = new_value;
 
 	/* Set the new value in the hw register */
 	tfanone_swvstep = new_value;
 
-	return new_value;
+	return active_value;
 }
 
 static int tfanone_get_swvstep(struct tfa_device *tfa)
@@ -457,7 +437,7 @@ static int tfa9912_set_swprofile(struct tfa_device *tfa, unsigned short new_valu
 	int active_value = tfa_dev_get_swprof(tfa);
 
 	/* Set the new value in the struct */
-	tfa->profile = new_value-1;
+	tfa->profile = new_value;
 
 	/* Set the new value in the hw register */
 	tfa_set_bf_volatile(tfa, TFA9912_BF_SWPROFIL, new_value);
@@ -472,13 +452,15 @@ static int tfa9912_get_swprofile(struct tfa_device *tfa)
 
 static int tfa9912_set_swvstep(struct tfa_device *tfa, unsigned short new_value)
 {
+	int active_value = tfa_dev_get_swvstep(tfa);
+
 	/* Set the new value in the struct */
-	tfa->vstep = new_value-1;
+	tfa->vstep = new_value;
 
 	/* Set the new value in the hw register */
 	tfa_set_bf_volatile(tfa, TFA9912_BF_SWVSTEP, new_value);
 
-	return new_value;
+	return active_value;
 }
 
 static int tfa9912_get_swvstep(struct tfa_device *tfa)
@@ -572,28 +554,6 @@ static enum Tfa98xx_Error tfa9912_set_osc_powerdown(struct tfa_device *tfa, int 
 	return Tfa98xx_Error_Bad_Parameter;
 }
 
-/* * Set manager state to operating state with coolflux disabled for 9912
-*
-*  This function is a worker for tfa98xx_set_calib_state().
-*
-*  @param[in] tfa device description structure
-*  @return Tfa98xx_Error_Ok when successfull, error otherwise.
-*/
-
-static enum Tfa98xx_Error tfa9912_set_calib_state(struct tfa_device *tfa)
-{
-	enum Tfa98xx_Error error = Tfa98xx_Error_Ok;
-	tfa_set_bf(tfa, TFA9912_BF_STARTUPMODE, 0);
-	tfa_set_bf(tfa, TFA9912_BF_MANCOLD, 0);
-	tfa_set_bf(tfa, TFA9912_BF_MANSCONF, 1);
-	error = tfa_set_bf(tfa, TFA9894_BF_AMPC, 0);
-	error = tfa_set_bf(tfa, TFA9894_BF_AMPE, 1);
-	tfa_set_bf(tfa, TFA9912_BF_CFE,0);
-	tfa_set_bf(tfa, TFA9912_BF_PWDN,0);
-
-	return error;
-}
-
 void tfa9912_ops(struct tfa_device_ops *ops)
 {
 	/* Set defaults for ops */
@@ -612,8 +572,6 @@ void tfa9912_ops(struct tfa_device_ops *ops)
 	ops->set_mute = tfa9912_set_mute;
 	ops->faim_protect = tfa9912_faim_protect;
 	ops->set_osc_powerdown = tfa9912_set_osc_powerdown;
-	ops->set_calib_state = tfa9912_set_calib_state;
-
 }
 
 /***********************************************************************************/
@@ -707,7 +665,7 @@ static int tfa9872_set_swprofile(struct tfa_device *tfa, unsigned short new_valu
 	int active_value = tfa_dev_get_swprof(tfa);
 
 	/* Set the new value in the struct */
-	tfa->profile = new_value-1;
+	tfa->profile = new_value;
 
 	/* Set the new value in the hw register */
 	tfa_set_bf_volatile(tfa, TFA9872_BF_SWPROFIL, new_value);
@@ -722,13 +680,15 @@ static int tfa9872_get_swprofile(struct tfa_device *tfa)
 
 static int tfa9872_set_swvstep(struct tfa_device *tfa, unsigned short new_value)
 {
+	int active_value = tfa_dev_get_swvstep(tfa);
+
 	/* Set the new value in the struct */
-	tfa->vstep = new_value-1;
+	tfa->vstep = new_value;
 
 	/* Set the new value in the hw register */
 	tfa_set_bf_volatile(tfa, TFA9872_BF_SWVSTEP, new_value);
 
-	return new_value;
+	return active_value;
 }
 
 static int tfa9872_get_swvstep(struct tfa_device *tfa)
@@ -823,20 +783,21 @@ static enum Tfa98xx_Error tfa9874_specific(struct tfa_device *tfa)
 			break;
 		case 0x0c74:
 			/* ----- generated code start ----- */
-			/* V1.12 */
-			reg_write(tfa, 0x02, 0x22c8); //POR=0x25c8
+			reg_write(tfa, 0x02, 0x22a8); //POR=0x25c8
+			reg_write(tfa, 0x51, 0x0020); //POR=0x0000
 			reg_write(tfa, 0x52, 0x57dc); //POR=0x56dc
-			reg_write(tfa, 0x53, 0x003e); //POR=0x001e
-			reg_write(tfa, 0x56, 0x0400); //POR=0x0600
+			reg_write(tfa, 0x58, 0x16a4); //POR=0x1614
 			reg_write(tfa, 0x61, 0x0110); //POR=0x0198
-			reg_write(tfa, 0x6f, 0x00a2); //POR=0x01a3
+			reg_write(tfa, 0x6f, 0x00a3); //POR=0x01a3
 			reg_write(tfa, 0x70, 0x07f8); //POR=0x06f8
 			reg_write(tfa, 0x73, 0x0047); //POR=0x0045
-			reg_write(tfa, 0x74, 0x5098); //POR=0xcc80
-			reg_write(tfa, 0x75, 0x8d28); //POR=0x1138
-			reg_write(tfa, 0x80, 0x0000); //POR=0x0003
-			reg_write(tfa, 0x83, 0x0799); //POR=0x061a
-			reg_write(tfa, 0x84, 0x0081); //POR=0x0021
+			reg_write(tfa, 0x74, 0x5068); //POR=0xcc80
+			reg_write(tfa, 0x75, 0x0d28); //POR=0x1138
+			reg_write(tfa, 0x83, 0x0595); //POR=0x061a
+			reg_write(tfa, 0x84, 0x0001); //POR=0x0021
+			reg_write(tfa, 0x85, 0x0001); //POR=0x0003
+			reg_write(tfa, 0x88, 0x0000); //POR=0x0002
+			reg_write(tfa, 0xc4, 0x2001); //POR=0x0001
 			/* ----- generated code end   ----- */
 			break;
 		default:
@@ -852,7 +813,7 @@ static int tfa9874_set_swprofile(struct tfa_device *tfa, unsigned short new_valu
 	int active_value = tfa_dev_get_swprof(tfa);
 
 	/* Set the new value in the struct */
-	tfa->profile = new_value-1;
+	tfa->profile = new_value;
 
 	/* Set the new value in the hw register */
 	tfa_set_bf_volatile(tfa, TFA9874_BF_SWPROFIL, new_value);
@@ -867,13 +828,15 @@ static int tfa9874_get_swprofile(struct tfa_device *tfa)
 
 static int tfa9874_set_swvstep(struct tfa_device *tfa, unsigned short new_value)
 {
+	int active_value = tfa_dev_get_swvstep(tfa);
+
 	/* Set the new value in the struct */
-	tfa->vstep = new_value-1;
+	tfa->vstep = new_value;
 
 	/* Set the new value in the hw register */
 	tfa_set_bf_volatile(tfa, TFA9874_BF_SWVSTEP, new_value);
 
-	return new_value;
+	return active_value;
 }
 
 static int tfa9874_get_swvstep(struct tfa_device *tfa)
@@ -1082,26 +1045,6 @@ tfa9888_set_mute(struct tfa_device *tfa, int mute)
 	return Tfa98xx_Error_Ok;
 }
 
-/* * Set manager state to operating state with coolflux disabled for 9912
-*
-*  This function is a worker for tfa98xx_set_calib_state().
-*
-*  @param[in] tfa device description structure
-*  @return Tfa98xx_Error_Ok when successfull, error otherwise.
-*/
-static enum Tfa98xx_Error tfa9888_set_calib_state(struct tfa_device *tfa)
-{
-	enum Tfa98xx_Error error = Tfa98xx_Error_Ok;
-
-	error = tfa_set_bf(tfa, TFA9894_BF_CFE, 0);//tfa_set_bf(tfa, TFA9894_BF_MANAOOSC, (uint16_t)state)
-	error = tfa_set_bf(tfa, TFA9894_BF_MANCOLD, 0);
-	error = tfa_set_bf(tfa, TFA9894_BF_MANSCONF, 1);
-	error = tfa_set_bf(tfa, TFA9894_BF_AMPC, 0);
-	error = tfa_set_bf(tfa, TFA9894_BF_AMPE, 1);
-	error = tfa_set_bf(tfa, TFA9894_BF_PWDN, 0);
-	return error;
-}
-
 void tfa9888_ops(struct tfa_device_ops *ops)
 {
 	/* Set defaults for ops */
@@ -1112,7 +1055,6 @@ void tfa9888_ops(struct tfa_device_ops *ops)
 	ops->auto_copy_mtp_to_iic = tfa9888_auto_copy_mtp_to_iic;
 	ops->factory_trimmer = tfa9888_factory_trimmer;
 	ops->set_mute = tfa9888_set_mute;
-	ops->set_calib_state = tfa9888_set_calib_state;
 }
 
 /***********************************************************************************/
@@ -1577,7 +1519,7 @@ static int tfa9894_set_swprofile(struct tfa_device *tfa, unsigned short new_valu
 	int active_value = tfa_dev_get_swprof(tfa);
 
 	/* Set the new value in the struct */
-	tfa->profile = new_value-1;
+	tfa->profile = new_value;
 
 	/* Set the new value in the hw register */
 	tfa_set_bf_volatile(tfa, TFA9894_BF_SWPROFIL, new_value);
@@ -1592,13 +1534,15 @@ static int tfa9894_get_swprofile(struct tfa_device *tfa)
 
 static int tfa9894_set_swvstep(struct tfa_device *tfa, unsigned short new_value)
 {
+	int active_value = tfa_dev_get_swvstep(tfa);
+
 	/* Set the new value in the struct */
-	tfa->vstep = new_value-1;
+	tfa->vstep = new_value;
 
 	/* Set the new value in the hw register */
 	tfa_set_bf_volatile(tfa, TFA9894_BF_SWVSTEP, new_value);
 
-	return new_value;
+	return active_value;
 }
 
 static int tfa9894_get_swvstep(struct tfa_device *tfa)
@@ -1714,28 +1658,6 @@ static enum Tfa98xx_Error tfa9894_dsp_system_stable(struct tfa_device *tfa, int 
 	return error;
 }
 
-/* * Set manager state to operating state with coolflux disabled for 9912
-*
-*  This function is a worker for tfa98xx_set_calib_state().
-*
-*  @param[in] tfa device description structure
-*  @return Tfa98xx_Error_Ok when successfull, error otherwise.
-*/
-static enum Tfa98xx_Error tfa9894_set_calib_state(struct tfa_device *tfa)
-{
-	enum Tfa98xx_Error error = Tfa98xx_Error_Ok;
-	
-	error = tfa_set_bf(tfa, TFA9894_BF_CFE, 0);//tfa_set_bf(tfa, TFA9894_BF_MANAOOSC, (uint16_t)state)
-	error = tfa_set_bf(tfa, TFA9894_BF_MANCOLD, 0);
-	error = tfa_set_bf(tfa, TFA9894_BF_MANSCONF, 1);
-	error = tfa_set_bf(tfa, TFA9894_BF_AMPINSEL, 0);
-	error = tfa_set_bf(tfa, TFA9894_BF_DCINSEL, 0);
-	error = tfa_set_bf(tfa, TFA9894_BF_AMPC, 0);
-	error = tfa_set_bf(tfa, TFA9894_BF_AMPE, 1);
-	error = tfa_set_bf(tfa, TFA9894_BF_PWDN, 0);
-	return error;
-}
-
 void tfa9894_ops(struct tfa_device_ops *ops)
 {
 	/* Set defaults for ops */
@@ -1750,6 +1672,6 @@ void tfa9894_ops(struct tfa_device_ops *ops)
 	ops->get_swprof			= tfa9894_get_swprofile;
 	ops->set_swvstep		= tfa9894_set_swvstep;
 	ops->get_swvstep		= tfa9894_get_swvstep;
-	ops->set_osc_powerdown	= tfa9894_set_osc_powerdown;
-	ops->set_calib_state	= tfa9894_set_calib_state;
+	//ops->auto_copy_mtp_to_iic = tfa9894_auto_copy_mtp_to_iic;
+	ops->set_osc_powerdown = tfa9894_set_osc_powerdown;
 }

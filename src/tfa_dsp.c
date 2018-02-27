@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -241,7 +241,7 @@ void tfa_set_query_info(struct tfa_device *tfa)
 	case 0: /* tfanone : non-i2c external DSP device */
 		/* e.g. qc adsp */
 		tfa->supportDrc = supportYes;
-		tfa->tfa_family = 2;
+		tfa->tfa_family = 0;
 		tfa->spkr_count = 0;
 		tfa->daimap = 0;
 		tfanone_ops(&tfa->dev_ops); /* register device operations via tfa hal*/
@@ -599,24 +599,6 @@ enum Tfa98xx_Error tfa98xx_set_osc_powerdown(struct tfa_device *tfa, int state)
 	return Tfa98xx_Error_Not_Implemented;
 }
 
-/* * Set manager state to operating state with coolflux disabled.
-*
-*
-*  @param[in] tfa device description structure
-*  @return Tfa98xx_Error_Ok when successfull, error otherwise.
-*/
-enum Tfa98xx_Error tfa98xx_set_calib_state(struct tfa_device *tfa) {
-	enum Tfa98xx_Error error = Tfa98xx_Error_Ok;
-	
-	(void)error;
-	if (tfa->dev_ops.set_calib_state) {
-		return tfa->dev_ops.set_calib_state(tfa);
-	}
-
-	return Tfa98xx_Error_Not_Implemented;
-
-}
-
 /** Check presence of powerswitch=1 in configuration and optimal setting.
 *
 *  @param[in] tfa device description structure
@@ -720,25 +702,15 @@ enum Tfa98xx_Error tfa98xx_get_mtp(struct tfa_device *tfa, uint16_t *value)
 {
 	int status;
 	int result;
-	int tries = 0;
 
 	/* not possible if PLL in powerdown */
 	if ( TFA_GET_BF(tfa, PWDN) ) {
 		pr_debug("PLL in powerdown\n");
 		return Tfa98xx_Error_NoClock;
 	}
-	
-	/* Wait until we are in PLL powerdown */
-	do {
-		result = tfa98xx_dsp_system_stable(tfa, &status);
-		if (status==1)
-			break;
-		else
-			msleep_interruptible(10); /* wait 10ms to avoid busload */
-		tries++;
-	} while (tries <= 100);
 
-	if ((tries > 100) || (status == 0)) {
+	tfa98xx_dsp_system_stable(tfa, &status);
+	if (status==0) {
 		pr_debug("PLL not running\n");
 		return Tfa98xx_Error_NoClock;
 	}
@@ -3017,8 +2989,7 @@ enum tfa_error tfa_dev_start(struct tfa_device *tfa, int next_profile, int vstep
 		}
 
 		err = show_current_state(tfa);
-		/* get current vstep*/
-		tfa->vstep = tfa_dev_get_swvstep(tfa);
+
 		if (vstep != tfa->vstep && vstep != -1) {
 			err = tfaContWriteFilesVstep(tfa, next_profile, vstep);
 			if ( err != Tfa98xx_Error_Ok)
@@ -3101,9 +3072,8 @@ int tfa_reset(struct tfa_device *tfa)
 		err = -TFA_SET_BF(tfa, I2CR, 1);
 		PRINT_ASSERT(err);
 	} else {
-		if (tfa->ext_dsp > 0) {
+		if (tfa->ext_dsp > 0)
 			tfa98xx_init_dsp(tfa);
-		}
 	}
 
 	return err;
@@ -3612,12 +3582,11 @@ enum tfa_error tfa_dev_set_state(struct tfa_device *tfa, enum tfa_state state)
 
 enum tfa_state tfa_dev_get_state(struct tfa_device *tfa)
 {
-	int cold = 0;
+	int cold = TFA_GET_BF(tfa, ACS);
 	int manstate;
 
 	/* different per family type */
 	if ( tfa->tfa_family == 1 ) {
-		cold = TFA_GET_BF(tfa, ACS);
 		if (  cold && TFA_GET_BF(tfa, PWDN) )
 			tfa->state = TFA_STATE_RESET;
 		else if ( !cold && TFA_GET_BF(tfa, SWS))
@@ -3626,7 +3595,7 @@ enum tfa_state tfa_dev_get_state(struct tfa_device *tfa)
 		manstate = TFA_GET_BF(tfa, MANSTATE);
 		switch(manstate) {
 			case 0:
-				tfa->state = TFA_STATE_POWERDOWN;
+				tfa->state = cold ?  TFA_STATE_RESET : TFA_STATE_POWERDOWN;
 				break;
 			case 8: /* if dsp reset if off assume framework is running */
 				tfa->state = TFA_GET_BF(tfa, RST) ? TFA_STATE_INIT_CF : TFA_STATE_INIT_FW;

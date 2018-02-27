@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -36,14 +36,6 @@ enum tfa_error tfa_load_cnt(void *cnt, int length);
  * @return descriptor string
  */
 char *tfaContGetString(nxpTfaContainer_t *cnt, nxpTfaDescPtr_t *dsc);
-
-/**
-* Return the descriptor tfahal
-* @param cnt pointer to the container struct
-* @param dsc pointer to nxpTfa descriptor
-* @return descriptor tfahal
-*/
-char *tfa_cont_get_tfahal(nxpTfaContainer_t *cnt, nxpTfaDescPtr_t *dsc);
 
 /**
  * Gets the string for the given command type number

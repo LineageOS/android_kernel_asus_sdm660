@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -10,7 +10,7 @@
 #ifndef _TFA9874_TFAFIELDNAMES_H
 #define _TFA9874_TFAFIELDNAMES_H
 
-#define TFA9874_I2CVERSION    12
+#define TFA9874_I2CVERSION    1
 
 typedef enum nxpTfa9874BfEnumList {
     TFA9874_BF_PWDN  = 0x0000,    /*!< Powerdown selection                                */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -148,7 +148,9 @@ static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profil
 	ktime_t start_time, stop_time;
 	u64 delta_time;
 
-	start_time = ktime_get_boottime();
+	if (trace_level & 8) {
+		start_time = ktime_get_boottime();
+	}
 
 	err = tfa_dev_start(tfa98xx->tfa, next_profile, vstep);
 
@@ -2084,10 +2086,8 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 	if (tfa98xx->tfa->tfa_family == 2) {
 		mutex_lock(&tfa98xx->dsp_lock);
 		ret = tfa98xx_tfa_start(tfa98xx, tfa98xx->profile, tfa98xx->vstep);
-		if (ret == Tfa98xx_Error_Not_Supported) {
-			pr_err("Error loading settings on internal clock\n");
+		if (ret == Tfa98xx_Error_Not_Supported)
 			tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_FAIL;
-		}
 		mutex_unlock(&tfa98xx->dsp_lock);
 	}
 
@@ -2368,8 +2368,7 @@ static int tfa98xx_startup(struct snd_pcm_substream *substream,
 		return 0;
 
 	if (tfa98xx->dsp_fw_state != TFA98XX_DSP_FW_OK) {
-		dev_info(codec->dev, "Container file not loaded (state=%d)\n",
-		         tfa98xx->dsp_fw_state);
+		dev_info(codec->dev, "Container file not loaded\n");
 		return -EINVAL;
 	}
 
@@ -2930,7 +2929,6 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 				ret);
 			return -EIO;
 		}
-		dev_info(&i2c->dev, "TFA REVID:0x%04X", reg);
 		switch (reg & 0xff) {
 		case 0x72: /* tfa9872 */
 			pr_info("TFA9872 detected\n");

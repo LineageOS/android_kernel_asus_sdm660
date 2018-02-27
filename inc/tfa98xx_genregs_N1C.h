@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ * Copyright (C) 2018 NXP Semiconductors, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9,7 +9,6 @@
 
 #ifndef TFA2_GENREGS_H
 #define TFA2_GENREGS_H
-
 
 #define TFA98XX_SYS_CONTROL0              0x00
 #define TFA98XX_SYS_CONTROL1              0x01
