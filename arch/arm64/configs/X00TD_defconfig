@@ -685,13 +685,13 @@ CONFIG_QFMT_V2=y
 CONFIG_FUSE_FS=y
 CONFIG_MSDOS_FS=y
 CONFIG_VFAT_FS=y
+CONFIG_SDFAT_SUPPORT_DIR_SYNC=y
+CONFIG_SDFAT_VIRTUAL_XATTR_SELINUX_LABEL="u:object_r:vfat:s0"
 CONFIG_TMPFS=y
 CONFIG_TMPFS_POSIX_ACL=y
 CONFIG_ECRYPT_FS=y
 CONFIG_ECRYPT_FS_MESSAGING=y
 CONFIG_SDCARD_FS=y
-CONFIG_NLS_CODEPAGE_437=y
-CONFIG_NLS_ISO8859_1=y
 CONFIG_PRINTK_TIME=y
 CONFIG_DEBUG_INFO=y
 CONFIG_MAGIC_SYSRQ=y
@@ -757,10 +757,6 @@ CONFIG_SND_SOC_AW87339=y
 # Huaqin add for new audioboard bring up by xudayi at 2018/03/03 start
 CONFIG_SND_SOC_TFA9874=y
 # Huaqin add for new audioboard bring up by xudayi at 2018/03/03 end
-
-# Huaqin add for ZQL1650-5 by lanshiming at 2018/02/7 start
-CONFIG_NLS_UTF8=y
-# Huaqin add for ZQL1650-5 by lanshiming at 2018/02/7 end
 
 # Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 start
 CONFIG_PSTORE=y
