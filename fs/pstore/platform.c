@@ -307,6 +307,10 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		bool compressed;
 		size_t total_len;
 
+		/* Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 start */
+		big_oops_buf = NULL;
+		/* Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 end */
+
 		if (big_oops_buf && is_locked) {
 			dst = big_oops_buf;
 			hsize = sprintf(dst, "%s#%d Part%u\n", why,
@@ -359,6 +363,9 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 
 static struct kmsg_dumper pstore_dumper = {
 	.dump = pstore_dump,
+	/* Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 start */
+	.name = "pstore_ramoops",
+	/* Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 end */
 };
 
 /*

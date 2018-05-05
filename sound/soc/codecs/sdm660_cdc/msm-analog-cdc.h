@@ -209,6 +209,9 @@ struct sdm660_cdc_priv {
 	struct fw_info *fw_data;
 	struct notifier_block audio_ssr_nb;
 	int (*codec_spk_ext_pa_cb)(struct snd_soc_codec *codec, int enable);
+	/* Huaqin add for ZQL1650-155 by xudayi at 2018/02/02 start */
+	int (*codec_hph_ext_sw_cb)(struct snd_soc_codec *codec, int enable);
+	/* Huaqin add for ZQL1650-155 by xudayi at 2018/02/02 end */
 	unsigned long status_mask;
 	struct wcd_imped_i_ref imped_i_ref;
 	enum wcd_mbhc_imp_det_pin imped_det_pin;
@@ -236,6 +239,13 @@ extern void sdm660_cdc_update_int_spk_boost(bool enable);
 extern void msm_anlg_cdc_spk_ext_pa_cb(
 		int (*codec_spk_ext_pa)(struct snd_soc_codec *codec,
 		int enable), struct snd_soc_codec *codec);
+
+/* Huaqin add for ZQL1650-155 by xudayi at 2018/02/02 start */
+extern void msm_anlg_cdc_hph_ext_sw_cb(
+		int (*codec_hph_ext_sw)(struct snd_soc_codec *codec,
+		int enable), struct snd_soc_codec *codec);
+/* Huaqin add for ZQL1650-155 by xudayi at 2018/02/02 end */
+
 int msm_anlg_codec_info_create_codec_entry(struct snd_info_entry *codec_root,
 					   struct snd_soc_codec *codec);
 #endif

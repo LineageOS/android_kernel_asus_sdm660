@@ -3047,6 +3047,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 #endif
 	REG("cmdline",    S_IRUGO, proc_pid_cmdline_ops),
 	ONE("stat",       S_IRUGO, proc_tgid_stat),
+	/* Huaqin add  for ZQL1650-860 by lvzheng at 2018/03/22 start */
+	ONE("cpu_infos",      S_IRUGO, proc_tgid_stat),
+	/* Huaqin add  for ZQL1650-860 by lvzheng at 2018/02/22 end */
 	ONE("statm",      S_IRUGO, proc_pid_statm),
 	REG("maps",       S_IRUGO, proc_pid_maps_operations),
 #ifdef CONFIG_NUMA
@@ -3439,6 +3442,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #endif
 	REG("cmdline",   S_IRUGO, proc_pid_cmdline_ops),
 	ONE("stat",      S_IRUGO, proc_tid_stat),
+	/* Huaqin add  for ZQL1650-860 by lvzheng at 2018/03/22 start */
+	ONE("cpu_infos",      S_IRUGO, proc_tid_stat),
+	/* Huaqin add  for ZQL1650-860 by lvzheng at 2018/03/22 end */
 	ONE("statm",     S_IRUGO, proc_pid_statm),
 	REG("maps",      S_IRUGO, proc_tid_maps_operations),
 #ifdef CONFIG_PROC_CHILDREN
@@ -3731,3 +3737,4 @@ static const struct file_operations proc_task_operations = {
 	.iterate	= proc_task_readdir,
 	.llseek		= default_llseek,
 };
+

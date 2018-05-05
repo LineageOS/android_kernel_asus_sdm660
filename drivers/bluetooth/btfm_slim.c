@@ -499,6 +499,9 @@ static int btfm_slim_probe(struct slim_device *slim)
 	btfm_slim->dev = &slim->dev;
 	ret = btfm_slim_register_codec(&slim->dev);
 	ret = bt_register_slimdev(&slim->dev);
+	/* Huaqin add for test card register fail reason by xudayi at 2018/02/24 start */
+	BTFMSLIM_ERR("btfm SLIMBUS register success\n");
+	/* Huaqin add for test card register fail reason by xudayi at 2018/02/24 end */
 	return ret;
 
 dealloc:

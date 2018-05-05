@@ -23,6 +23,9 @@ obj-$(CONFIG_INPUT_MOUSE)	+= mouse/
 obj-$(CONFIG_INPUT_JOYSTICK)	+= joystick/
 obj-$(CONFIG_INPUT_TABLET)	+= tablet/
 obj-$(CONFIG_INPUT_TOUCHSCREEN)	+= touchscreen/
+# Huaqin modify for ZQL1650-143 by wangxiang at 2018/01/23 start
+obj-$(CONFIG_INPUT_FINGERPRINT)	+= fingerprint/
+# Huaqin modify for ZQL1650-143 by wangxiang at 2018/01/23 end
 obj-$(CONFIG_INPUT_MISC)	+= misc/
 
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o

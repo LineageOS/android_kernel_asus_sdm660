@@ -1224,5 +1224,9 @@ config TOUCHSCREEN_ST
 	  If unsure, say N.
 
 source "drivers/input/touchscreen/st/Kconfig"
+#Huaqin modify for ZQL1650-137 by zhengwu.lu at 2018/01/22 start
+source "drivers/input/touchscreen/NVT_Touch/Kconfig"
+#Huaqin modify for ZQL1650-137 by zhengwu.lu at 2018/01/22 end
+source "drivers/input/touchscreen/focaltech_touch/Kconfig"
 
 endif

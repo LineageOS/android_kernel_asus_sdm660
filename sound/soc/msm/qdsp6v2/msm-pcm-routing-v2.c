@@ -11750,7 +11750,9 @@ static const char * const slim0_rx_vi_fb_tx_rch_mux_text[] = {
 };
 
 static const char * const mi2s_rx_vi_fb_tx_mux_text[] = {
-	"ZERO", "SENARY_TX"
+	/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 start */
+	"ZERO", "TERT_MI2S_TX"
+	/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 end */
 };
 
 static const char * const int4_mi2s_rx_vi_fb_tx_mono_mux_text[] = {
@@ -11770,7 +11772,9 @@ static const int const slim0_rx_vi_fb_tx_rch_value[] = {
 };
 
 static const int const mi2s_rx_vi_fb_tx_value[] = {
-	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_SENARY_MI2S_TX
+/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 start */
+	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_TERTIARY_MI2S_TX
+/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 end */
 };
 
 static const int const int4_mi2s_rx_vi_fb_tx_mono_ch_value[] = {
@@ -11791,10 +11795,12 @@ static const struct soc_enum slim0_rx_vi_fb_rch_mux_enum =
 	ARRAY_SIZE(slim0_rx_vi_fb_tx_rch_mux_text),
 	slim0_rx_vi_fb_tx_rch_mux_text, slim0_rx_vi_fb_tx_rch_value);
 
+/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 start */
 static const struct soc_enum mi2s_rx_vi_fb_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_PRI_MI2S_RX, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_TERTIARY_MI2S_RX, 0, 0,
 	ARRAY_SIZE(mi2s_rx_vi_fb_tx_mux_text),
 	mi2s_rx_vi_fb_tx_mux_text, mi2s_rx_vi_fb_tx_value);
+/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 end */
 
 static const struct soc_enum int4_mi2s_rx_vi_fb_mono_ch_mux_enum =
 	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_INT4_MI2S_RX, 0, 0,
@@ -11818,10 +11824,12 @@ static const struct snd_kcontrol_new slim0_rx_vi_fb_rch_mux =
 	slim0_rx_vi_fb_rch_mux_enum, spkr_prot_get_vi_rch_port,
 	spkr_prot_put_vi_rch_port);
 
+/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 start */
 static const struct snd_kcontrol_new mi2s_rx_vi_fb_mux =
-	SOC_DAPM_ENUM_EXT("PRI_MI2S_RX_VI_FB_MUX",
+	SOC_DAPM_ENUM_EXT("TERT_MI2S_RX_VI_FB_MUX",
 	mi2s_rx_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
 	spkr_prot_put_vi_lch_port);
+/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 end */
 
 static const struct snd_kcontrol_new int4_mi2s_rx_vi_fb_mono_ch_mux =
 	SOC_DAPM_ENUM_EXT("INT4_MI2S_RX_VI_FB_MONO_CH_MUX",
@@ -12920,8 +12928,10 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 				&slim0_rx_vi_fb_lch_mux),
 	SND_SOC_DAPM_MUX("SLIM0_RX_VI_FB_RCH_MUX", SND_SOC_NOPM, 0, 0,
 				&slim0_rx_vi_fb_rch_mux),
-	SND_SOC_DAPM_MUX("PRI_MI2S_RX_VI_FB_MUX", SND_SOC_NOPM, 0, 0,
+/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 start */
+	SND_SOC_DAPM_MUX("TERT_MI2S_RX_VI_FB_MUX", SND_SOC_NOPM, 0, 0,
 				&mi2s_rx_vi_fb_mux),
+/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 end */
 	SND_SOC_DAPM_MUX("INT4_MI2S_RX_VI_FB_MONO_CH_MUX", SND_SOC_NOPM, 0, 0,
 				&int4_mi2s_rx_vi_fb_mono_ch_mux),
 	SND_SOC_DAPM_MUX("INT4_MI2S_RX_VI_FB_STEREO_CH_MUX", SND_SOC_NOPM, 0, 0,
@@ -14880,7 +14890,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_DL_HL"},
 	{"SEC_MI2S_RX_DL_HL", "Switch", "SEC_MI2S_DL_HL"},
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX_DL_HL"},
-	{"TERT_MI2S_RX_DL_HL", "Switch", "TERT_MI2S_DL_HL"},
+	/* Huaqin add for config fm path by xudayi at 2018/03/05 end */
+	{"TERT_MI2S_RX_DL_HL", "Switch", "INT4_MI2S_DL_HL"},
+	/* Huaqin add for config fm path by xudayi at 2018/03/05 start */
 	{"TERT_MI2S_RX", NULL, "TERT_MI2S_RX_DL_HL"},
 
 	{"QUAT_MI2S_RX_DL_HL", "Switch", "QUAT_MI2S_DL_HL"},
@@ -15566,12 +15578,16 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"INCALL_RECORD_RX", NULL, "BE_IN"},
 	{"SLIM0_RX_VI_FB_LCH_MUX", "SLIM4_TX", "SLIMBUS_4_TX"},
 	{"SLIM0_RX_VI_FB_RCH_MUX", "SLIM4_TX", "SLIMBUS_4_TX"},
-	{"PRI_MI2S_RX_VI_FB_MUX", "SENARY_TX", "SENARY_TX"},
+	/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 start */
+	{"TERT_MI2S_RX_VI_FB_MUX", "TERT_MI2S_TX", "TERT_MI2S_TX"},
+	/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 end */
 	{"INT4_MI2S_RX_VI_FB_MONO_CH_MUX", "INT5_MI2S_TX", "INT5_MI2S_TX"},
 	{"INT4_MI2S_RX_VI_FB_STEREO_CH_MUX", "INT5_MI2S_TX", "INT5_MI2S_TX"},
 	{"SLIMBUS_0_RX", NULL, "SLIM0_RX_VI_FB_LCH_MUX"},
 	{"SLIMBUS_0_RX", NULL, "SLIM0_RX_VI_FB_RCH_MUX"},
-	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_VI_FB_MUX"},
+	/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 start */
+	{"TERT_MI2S_RX", NULL, "TERT_MI2S_RX_VI_FB_MUX"},
+	/* Huaqin add for active nxp pa cal function by xudayi at 2018/03/03 end */
 	{"INT4_MI2S_RX", NULL, "INT4_MI2S_RX_VI_FB_MONO_CH_MUX"},
 	{"INT4_MI2S_RX", NULL, "INT4_MI2S_RX_VI_FB_STEREO_CH_MUX"},
 	{"PRI_TDM_TX_0", NULL, "BE_IN"},

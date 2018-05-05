@@ -50,6 +50,9 @@ struct kmsg_dumper {
 	u32 next_idx;
 	u64 cur_seq;
 	u64 next_seq;
+	/* Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 start */
+	char *name;
+	/* Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 end */
 };
 
 #ifdef CONFIG_PRINTK

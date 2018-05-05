@@ -2,6 +2,10 @@
 # Makefile for the linux pstorefs routines.
 #
 
+# Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 start
+ccflags-y    := -DDEBUG
+# Huaqin add for ZQL1650-358 by liunianliang at 2018/02/08 end
+
 obj-$(CONFIG_PSTORE) += pstore.o
 
 pstore-objs += inode.o platform.o

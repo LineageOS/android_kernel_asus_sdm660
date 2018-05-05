@@ -4,3 +4,10 @@ config SENSORS_SSC
 	  Add support for sensors SSC driver.
 	  This driver is used for exercising sensors use case,
 	  time syncing with ADSP clock.
+#Huaqin add for ZQL1650-141 by chenyijun5 at 2018/02/01 start
+config INPUT_STK3321
+	tristate "STK STK3321 alsps sensor"
+	depends on I2C
+	help
+	  Say Y here to enable the STK3321 ALSPS Sensor.
+#Huaqin add for ZQL1650-141 by chenyijun5 at 2018/02/01 end

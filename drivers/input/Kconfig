@@ -212,6 +212,10 @@ source "drivers/input/tablet/Kconfig"
 
 source "drivers/input/touchscreen/Kconfig"
 
+# Huaqin modify for ZQL1650-143 by wangxiang at 2018/01/23 start
+source "drivers/input/fingerprint/Kconfig"
+# Huaqin modify for ZQL1650-143 by wangxiang at 2018/01/23 end
+
 source "drivers/input/misc/Kconfig"
 
 endif

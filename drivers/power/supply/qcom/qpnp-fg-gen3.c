@@ -23,6 +23,10 @@
 #include "fg-core.h"
 #include "fg-reg.h"
 
+//Huaqin add by tangqingyong at 2017/02/02 start
+#include <linux/switch.h>
+//Huaqin add by tangqingyong at 2017/02/02 end
+
 #define FG_GEN3_DEV_NAME	"qcom,fg-gen3"
 
 #define PERPH_SUBTYPE_REG		0x05
@@ -401,6 +405,13 @@ module_param_named(
 
 static int fg_restart;
 static bool fg_sram_dump;
+
+//Huaqin add by tangqingyong at 2017/02/02 start
+struct battery_name {
+	struct switch_dev battery_switch_dev;
+	char battery_name_type[100];
+} battery_name;
+//Huaqin add by tangqingyong at 2017/02/02 end
 
 /* All getters HERE */
 
@@ -874,6 +885,26 @@ static int fg_batt_missing_config(struct fg_chip *chip, bool enable)
 			BATT_INFO_BATT_MISS_CFG(chip), rc);
 	return rc;
 }
+//Huaqin add by tangqingyong at 2017/02/02 start
+ssize_t battery_print_name(struct switch_dev *sdev,char *buf)
+{
+	return sprintf(buf,"%s\n",battery_name.battery_name_type);
+}
+static int battery_switch_register(void)
+{
+	int ret;
+	battery_name.battery_switch_dev.name="battery";
+	battery_name.battery_switch_dev.print_name=battery_print_name;
+	ret = switch_dev_register(&battery_name.battery_switch_dev);
+	if(ret<0)
+		return ret;
+	battery_name.battery_switch_dev.state=0;
+	switch_set_state(&battery_name.battery_switch_dev,
+		battery_name.battery_switch_dev.state);
+	return 0;
+}
+//Huaqin add by tangqingyong at 2017/02/02 end
+
 
 static int fg_get_batt_id(struct fg_chip *chip)
 {
@@ -939,6 +970,11 @@ static int fg_get_batt_profile(struct fg_chip *chip)
 		pr_err("battery type unavailable, rc:%d\n", rc);
 		return rc;
 	}
+	//Huaqin add by tangqingyong at 2017/02/02 start
+	strcpy(battery_name.battery_name_type,chip->bp.batt_type_str);
+	battery_switch_register();
+	//Huaqin add by tangqingyong at 2017/02/02 end
+
 
 	rc = of_property_read_u32(profile_node, "qcom,max-voltage-uv",
 			&chip->bp.float_volt_uv);
@@ -956,6 +992,7 @@ static int fg_get_batt_profile(struct fg_chip *chip)
 
 	rc = of_property_read_u32(profile_node, "qcom,fg-cc-cv-threshold-mv",
 			&chip->bp.vbatt_full_mv);
+	printk("enter fg_get_batt_profile chip->bp.vbatt_full_mv=%d\n",chip->bp.vbatt_full_mv);
 	if (rc < 0) {
 		pr_err("battery cc_cv threshold unavailable, rc:%d\n", rc);
 		chip->bp.vbatt_full_mv = -EINVAL;
@@ -1713,6 +1750,7 @@ static int fg_charge_full_update(struct fg_chip *chip)
 	recharge_soc = chip->dt.recharge_soc_thr;
 	recharge_soc = DIV_ROUND_CLOSEST(recharge_soc * FULL_SOC_RAW,
 				FULL_CAPACITY);
+	printk("enter fg_charge_full_update recharge_soc=%d\n",recharge_soc);
 	rc = fg_get_sram_prop(chip, FG_SRAM_BATT_SOC, &bsoc);
 	if (rc < 0) {
 		pr_err("Error in getting BATT_SOC, rc=%d\n", rc);
@@ -1726,11 +1764,13 @@ static int fg_charge_full_update(struct fg_chip *chip)
 		pr_err("Error in getting msoc_raw, rc=%d\n", rc);
 		goto out;
 	}
+	printk("enter fg_charge_full_update  msoc_raw=%d\n",msoc_raw);
 	msoc = DIV_ROUND_CLOSEST(msoc_raw * FULL_CAPACITY, FULL_SOC_RAW);
 
 	fg_dbg(chip, FG_STATUS, "msoc: %d bsoc: %x health: %d status: %d full: %d\n",
 		msoc, bsoc, chip->health, chip->charge_status,
 		chip->charge_full);
+	printk("enter fg_charge_full_update msoc: %d bsoc: %x\n",msoc, bsoc);
 	if (chip->charge_done && !chip->charge_full) {
 		if (msoc >= 99 && chip->health == POWER_SUPPLY_HEALTH_GOOD) {
 			fg_dbg(chip, FG_STATUS, "Setting charge_full to true\n");
@@ -1795,6 +1835,7 @@ static int fg_charge_full_update(struct fg_chip *chip)
 		chip->charge_full = false;
 		fg_dbg(chip, FG_STATUS, "msoc_raw = %d bsoc: %d recharge_soc: %d delta_soc: %d\n",
 			msoc_raw, bsoc >> 8, recharge_soc, chip->delta_soc);
+		printk("enter fg_charge_full_update msoc_raw = %d bsoc: %d recharge_soc: %d\n",msoc_raw, bsoc >> 8, recharge_soc);
 	}
 
 out:
@@ -1883,7 +1924,7 @@ static int fg_set_constant_chg_voltage(struct fg_chip *chip, int volt_uv)
 {
 	u8 buf[2];
 	int rc;
-
+	printk("enter  fg_set_constant_chg_voltage volt_uv=%d\n",volt_uv);
 	if (volt_uv <= 0 || volt_uv > 15590000) {
 		pr_err("Invalid voltage %d\n", volt_uv);
 		return -EINVAL;
@@ -2443,6 +2484,13 @@ static void status_change_work(struct work_struct *work)
 	}
 
 	chip->charge_status = prop.intval;
+/* Huaqin modify for ZQL1650-750 optimize discharge capacity jump 1% by fangaijun at 2018/03/22 start*/
+	if(chip->charge_status !=4)
+	{
+		chip->charge_full = false;
+		printk("enter status_change_work charge_status=%d\n",chip->charge_status);
+	}
+/* Huaqin modify for ZQL1650-750 optimize discharge capacity jump 1% by fangaijun at 2018/03/22 end*/
 	rc = power_supply_get_property(chip->batt_psy,
 			POWER_SUPPLY_PROP_CHARGE_TYPE, &prop);
 	if (rc < 0) {
@@ -3382,6 +3430,23 @@ static int fg_psy_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CAPACITY:
 		rc = fg_get_prop_capacity(chip, &pval->intval);
+		/*Huaqin modify for hold soc by diganyun at 2018/02/24 start */
+		#ifdef HQ_BUILD_FACTORY
+		/* if soc is 0, hold soc 1 when vol over 3.4v  */
+		if(1 > pval->intval) {
+			pr_info("func %s, cap below 1 = %d \n",__func__, pval->intval);
+			rc = fg_get_battery_voltage(chip, &pval->intval);
+			pr_info("vol = %d \n", pval->intval);
+			if(pval->intval > 3400000) {
+				pr_info(" vol below 3.4v = %d \n", pval->intval);
+				pval->intval = 1;
+			}else {
+				rc = fg_get_prop_capacity(chip, &pval->intval);
+				pr_info("still keep cap = %d \n",pval->intval);
+			}
+		}
+		#endif
+		/*Huaqin modify for hold soc by diganyun at 2018/02/24 end */
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_RAW:
 		rc = fg_get_msoc_raw(chip, &pval->intval);
@@ -4582,7 +4647,9 @@ static int fg_parse_dt(struct fg_chip *chip)
 			pr_warn("Error reading Jeita thresholds, default values will be used rc:%d\n",
 				rc);
 	}
-
+/* Huaqin modify for ZQL1650 Realize HW Jeita by fangaijun	at 2018/02/6 start */
+	printk("enter fg_parse_dt :HW jeita cold:%d,cool:%d,warm:%d,hot:%d\n", chip->dt.jeita_thresholds[JEITA_COLD],chip->dt.jeita_thresholds[JEITA_COOL] ,chip->dt.jeita_thresholds[JEITA_WARM],chip->dt.jeita_thresholds[JEITA_HOT]); 
+/* Huaqin modify for ZQL1650 Realize HW Jeita by fangaijun	at 2018/02/6 end */
 	if (of_property_count_elems_of_size(node,
 		"qcom,battery-thermal-coefficients",
 		sizeof(u8)) == BATT_THERM_NUM_COEFFS) {
@@ -5000,7 +5067,18 @@ static void fg_gen3_shutdown(struct platform_device *pdev)
 {
 	struct fg_chip *chip = dev_get_drvdata(&pdev->dev);
 	int rc, bsoc;
-
+/* Huaqin modify for ZQL1650 when shutdown diasble BAT_ID by fangaijun at 2018/03/7 start */
+	u8 status;
+	rc = fg_read(chip, BATT_INFO_BATT_MISS_CFG(chip), &status, 1);
+	printk("fg_gen3_shutdown status0=%d\n",status);
+	rc = fg_masked_write(chip, BATT_INFO_BATT_MISS_CFG(chip),
+			BM_FROM_BATT_ID_BIT, 0);
+	if (rc < 0)
+		pr_err("Error in writing to %04x, rc=%d\n",
+			BATT_INFO_BATT_MISS_CFG(chip), rc);
+	rc = fg_read(chip, BATT_INFO_BATT_MISS_CFG(chip), &status, 1);
+	printk("fg_gen3_shutdown status1=%d\n",status);
+/* Huaqin modify for ZQL1650 when shutdown diasble BAT_ID by fangaijun at 2018/03/7 end */
 	if (chip->charge_full) {
 		rc = fg_get_sram_prop(chip, FG_SRAM_BATT_SOC, &bsoc);
 		if (rc < 0) {

@@ -772,11 +772,12 @@ static int find_mux_channel_index(uint32_t mux_id)
 static int find_vchannel_name_index(const char *vchannel_name)
 {
 	int i;
-
-	for (i = 0; i < MAX_NUM_OF_MUX_CHANNEL; i++) {
+	/* Huaqin modify for ZQL1650-620 by liunianliang at 2018/03/09 start */
+	for (i = 0; i < rmnet_index; i++) {
 		if (0 == strcmp(mux_channel[i].vchannel_name, vchannel_name))
 			return i;
 	}
+	/* Huaqin modify for ZQL1650-620 by liunianliang at 2018/03/09 end */
 	return MAX_NUM_OF_MUX_CHANNEL;
 }
 

@@ -140,6 +140,9 @@ struct mmc_ext_csd {
 	u8			barrier_en;
 
 	u8			fw_version;		/* 254 */
+/* Huaqin add for ZQL1650-43 by lanshiming at 2018/1/18 start*/
+	u8 			device_life_time[2];/* 268  269*/       		//ASUS_BSP PeterYeh : add for life time of eMMC
+/* Huaqin add for ZQL1650-43 by lanshiming at 2018/1/18 end*/
 	unsigned int            feature_support;
 #define MMC_DISCARD_FEATURE	BIT(0)                  /* CMD38 feature */
 };
@@ -433,6 +436,9 @@ struct mmc_card {
 	unsigned int	part_curr;
 
 	struct mmc_wr_pack_stats wr_pack_stats; /* packed commands stats*/
+/* Huaqin add for ZQL1650-43 by lanshiming at 2018/1/18 start*/
+	char                mmc_total_size[10];
+/* Huaqin add for ZQL1650-43 by lanshiming at 2018/1/18 end*/
 	struct notifier_block        reboot_notify;
 	enum mmc_pon_type pon_type;
 	bool cmdq_init;

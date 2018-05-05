@@ -285,7 +285,7 @@ config FHANDLE
 
 config USELIB
 	bool "uselib syscall"
-	default y
+	default n
 	help
 	  This option enables the uselib syscall, a system call used in the
 	  dynamic linker from libc5 and earlier.  glibc does not use this
@@ -824,7 +824,9 @@ config IKCONFIG_PROC
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
 	range 12 25
-	default 17
+	# Huaqin modify for ZQL1650-358 by liunianliang at 2018/02/08 start
+	default 20
+	# Huaqin modify for ZQL1650-358 by liunianliang at 2018/02/08 end
 	depends on PRINTK
 	help
 	  Select the minimal kernel log buffer size as a power of 2.

@@ -180,9 +180,11 @@ static void mdss_dsi_panel_apply_settings(struct mdss_dsi_ctrl_pdata *ctrl,
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
-
-static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 start */
+//static
+void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 			struct dsi_panel_cmds *pcmds, u32 flags)
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 end */
 {
 	struct dcs_cmd_req cmdreq;
 	struct mdss_panel_info *pinfo;
@@ -496,7 +498,9 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
-		gpio_set_value((ctrl_pdata->rst_gpio), 0);
+		/* Huaqin modify for suqence test by xieguoqiang at 2018/01/25 start */
+		gpio_set_value((ctrl_pdata->rst_gpio), 1);
+		/* Huaqin modify for sequence test by xieguoqiang at 2018/01/25 end */
 		gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->lcd_mode_sel_gpio)) {
 			gpio_set_value(ctrl_pdata->lcd_mode_sel_gpio, 0);
@@ -1814,9 +1818,12 @@ static bool mdss_dsi_cmp_panel_reg_v2(struct mdss_dsi_ctrl_pdata *ctrl)
 
 	for (j = 0; j < ctrl->groups; ++j) {
 		for (i = 0; i < len; ++i) {
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 start */
 			if (ctrl->return_buf[i] !=
-				ctrl->status_value[group + i])
+				ctrl->status_value[group + i]){
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 end */
 				break;
+			}
 		}
 
 		if (i == len)
@@ -2033,8 +2040,14 @@ static void mdss_dsi_parse_esd_params(struct device_node *np,
 	pinfo->esd_check_enabled = of_property_read_bool(np,
 		"qcom,esd-check-enabled");
 
+	/* Huaqin modify to disable ESD in factory version by xieguoqiang 20170201 start */
+//#ifdef HQ_BUILD_FACTORY
+//	return;
+//#else
 	if (!pinfo->esd_check_enabled)
 		return;
+//#endif
+	/* Huaqin modify to disable ESD in factory version by xieguoqiang 20170201 end */
 
 	ctrl->status_mode = ESD_MAX;
 	rc = of_property_read_string(np,
@@ -2915,7 +2928,10 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
 		"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
-
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 start */
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->esd_recover_cmds,
+		"qcom,mdss-dsi-esd-recover-command", "qcom,mdss-dsi-esd-recover-command-state");
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 end */
 	rc = of_property_read_u32(np, "qcom,adjust-timer-wakeup-ms", &tmp);
 	pinfo->adjust_timer_delay_ms = (!rc ? tmp : 0);
 

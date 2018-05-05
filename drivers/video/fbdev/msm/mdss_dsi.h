@@ -23,7 +23,9 @@
 #include "mdss_panel.h"
 #include "mdss_dsi_cmd.h"
 #include "mdss_dsi_clk.h"
-
+// Huaqin add for nvt_tp check function. by zhengwu.lu. at 2018/03/01  start
+extern int nvt_tp_check;
+// Huaqin add for nvt_tp check function. by zhengwu.lu. at 2018/03/01  end
 #define MMSS_SERDES_BASE_PHY 0x04f01000 /* mmss (De)Serializer CFG */
 
 #define MIPI_OUTP(addr, data) writel_relaxed((data), (addr))
@@ -499,6 +501,9 @@ struct mdss_dsi_ctrl_pdata {
 	struct dsi_panel_cmds off_cmds;
 	struct dsi_panel_cmds lp_on_cmds;
 	struct dsi_panel_cmds lp_off_cmds;
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 start */
+	struct dsi_panel_cmds esd_recover_cmds;
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 end */
 	struct dsi_panel_cmds status_cmds;
 	u32 *status_valid_params;
 	u32 *status_cmds_rlen;

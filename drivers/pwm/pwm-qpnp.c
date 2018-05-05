@@ -1499,14 +1499,16 @@ int pwm_change_mode(struct pwm_device *pwm, enum pm_pwm_mode mode)
 			goto unlock;
 		}
 		chip->pwm_mode = mode;
-		if (chip->enabled) {
-			rc = _pwm_enable(chip);
-			if (rc) {
-				pr_err("Failed to enable PWM, rc=%d\n", rc);
-				goto unlock;
-			}
+	}
+	/* Huaqin modify for fixing led cannot work by guojianghong at 2018/2/5 start*/
+	if (chip->enabled) {
+		rc = _pwm_enable(chip);
+		if (rc) {
+			pr_err("Failed to enable PWM, rc=%d\n", rc);
+			goto unlock;
 		}
 	}
+	/* Huaqin modify for fixing led cannot work by guojianghong at 2018/2/5 start*/
 unlock:
 	spin_unlock_irqrestore(&chip->lpg_lock, flags);
 

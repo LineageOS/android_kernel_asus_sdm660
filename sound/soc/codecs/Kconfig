@@ -180,6 +180,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
+	# Huaqin add for ZQL1650-155 by xudayi at 2018/02/02 start
+	select SND_SOC_AW87339 if I2C
+	# Huaqin add for ZQL1650-155 by xudayi at 2018/02/02 end
         help
           Normally ASoC codec drivers are only built if a machine driver which
           uses them is also built since they are only usable with a machine
@@ -190,6 +193,14 @@ config SND_SOC_ALL_CODECS
 	  be selected separately.
 
           If unsure select "N".
+
+# Huaqin add for ZQL1650-155 by xudayi at 2018/02/02 start
+config SND_SOC_AW87339
+	tristate "SoC Audio for awinic AW87339 Smart K PA"
+	depends on I2C
+	help
+	  This option enables support for AW87339 Smart K PA
+# Huaqin add for ZQL1650-155 by xudayi at 2018/02/02 end
 
 config SND_SOC_88PM860X
 	tristate
@@ -993,6 +1004,12 @@ config SND_SOC_MSM_HDMI_CODEC_RX
 	help
 	HDMI audio drivers should be built only if the platform
         supports hdmi panel.
+
+# Huaqin add for new audioboard bring up by xudayi at 2018/03/03 start
+config SND_SOC_TFA9874
+    tristate "NXP Semiconductors TFA9874 amplifier"
+	depends on I2C
+# Huaqin add for new audioboard bring up by xudayi at 2018/03/03 end
 
 source "sound/soc/codecs/sdm660_cdc/Kconfig"
 source "sound/soc/codecs/msm_sdw/Kconfig"

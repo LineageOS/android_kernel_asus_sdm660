@@ -1,0 +1,36 @@
+#
+# Fingerprint driver configuration
+#
+
+menuconfig INPUT_FINGERPRINT
+	bool "Fingerprint"
+	help
+	  Say Y here, and a list of supported fingerprint will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if INPUT_FINGERPRINT
+
+config COMMON_FP
+    bool "Fingerprint common"
+	help
+		Say Y here if you use common fp.
+		If unsure, say N.
+
+config CDFINGER_FP
+    bool "Fingerprint cdfinger"
+	help
+		Say Y here if you use common fp.
+		If unsure, say N.
+
+# Huaqin add for ZQL1650-143 by wangxiang at 2018/02/09 start
+config GOODIX_FP
+    bool "Fingerprint goodix"
+	help
+		Say Y here if you use common fp.
+		If unsure, say N.
+
+# Huaqin add for ZQL1650-143 by wangxiang at 2018/02/09 end
+
+endif

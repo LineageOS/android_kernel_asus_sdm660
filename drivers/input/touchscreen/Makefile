@@ -69,7 +69,7 @@ obj-$(CONFIG_TOUCHSCREEN_ST1232)	+= st1232.o
 obj-$(CONFIG_TOUCHSCREEN_STMPE)		+= stmpe-ts.o
 obj-$(CONFIG_TOUCHSCREEN_SUN4I)		+= sun4i-ts.o
 obj-$(CONFIG_TOUCHSCREEN_SUR40)		+= sur40.o
-obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_v21) += synaptics_dsx/
+#obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_v21) += synaptics_dsx/
 obj-$(CONFIG_TOUCHSCREEN_TI_AM335X_TSC)	+= ti_am335x_tsc.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHIT213)	+= touchit213.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHRIGHT)	+= touchright.o
@@ -98,3 +98,6 @@ obj-$(CONFIG_TOUCHSCREEN_ZFORCE)	+= zforce_ts.o
 obj-$(CONFIG_TOUCHSCREEN_COLIBRI_VF50)	+= colibri-vf50-ts.o
 obj-$(CONFIG_TOUCHSCREEN_ROHM_BU21023)	+= rohm_bu21023.o
 obj-$(CONFIG_TOUCHSCREEN_ST)		+= st/
+#Huaqin modify for ZQL1650-137 by zhengwu.lu at 2018/01/22 start
+obj-$(CONFIG_TOUCHSCREEN_NT36xxx)	+= NVT_Touch/
+#Huaqin modify for ZQL1650-137 by zhengwu.lu at 2018/01/22 end

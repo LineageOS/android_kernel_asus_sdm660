@@ -721,6 +721,17 @@ config INPUT_ADXL34X_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl34x-spi.
 
+# Huaqin add sar sensors sx9310 by chenyijun5 at 2018/02/06 start
+config INPUT_SX9310
+        tristate "sar sensor sx9310 support"
+        depends on INPUT && I2C
+        help
+          Say Y to enable support for the sar sensor sx9310 driver.
+
+          To compile this driver as a module, choose M here: the
+          module will be called.
+# Huaqin add sar sensors sx9310 by chenyijun5 at 2018/02/06 end
+
 config INPUT_IMS_PCU
 	tristate "IMS Passenger Control Unit driver"
 	depends on USB

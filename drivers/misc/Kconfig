@@ -584,4 +584,7 @@ source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
+# Huaqin add for ZQL1650-86 by liunianliang at 2018/02/09 start
+source "drivers/misc/huaqin/Kconfig"
+# Huaqin add for ZQL1650-86 by liunianliang at 2018/02/09 end
 endmenu

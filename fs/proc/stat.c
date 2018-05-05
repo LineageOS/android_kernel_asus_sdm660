@@ -201,6 +201,10 @@ static const struct file_operations proc_stat_operations = {
 static int __init proc_stat_init(void)
 {
 	proc_create("stat", 0, NULL, &proc_stat_operations);
+	/* Huaqin add  for ZQL1650-860 by lvzheng at 2018/03/22 start */
+	proc_create("cpu_infos", 444, NULL, &proc_stat_operations);
+	/* Huaqin add  for ZQL1650-860 by lvzheng at 2018/03/22 end */
 	return 0;
 }
 fs_initcall(proc_stat_init);
+

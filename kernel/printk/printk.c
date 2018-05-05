@@ -2887,8 +2887,12 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(dumper, &dump_list, list) {
+/* Huaqin modify for ZQL1650-358 by liunianliang at 2018/02/08 start */
+#if 0
 		if (dumper->max_reason && reason > dumper->max_reason)
 			continue;
+#endif
+/* Huaqin modify for ZQL1650-358 by liunianliang at 2018/02/08 end */
 
 		/* initialize iterator with data about the stored records */
 		dumper->active = true;

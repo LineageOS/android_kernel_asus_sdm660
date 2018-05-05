@@ -66,3 +66,7 @@ obj-$(CONFIG_UID_SYS_STATS) += uid_sys_stats.o
 obj-y				+= qcom/
 obj-$(CONFIG_QPNP_MISC) 	+= qpnp-misc.o
 obj-$(CONFIG_MEMORY_STATE_TIME) += memory_state_time.o
+
+# Huaqin add for ZQL1650-86 by liunianliang at 2018/02/09 start
+obj-y                           += huaqin/
+# Huaqin add for ZQL1650-86 by liunianliang at 2018/02/09 end

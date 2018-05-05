@@ -4673,7 +4673,10 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 	if (!mfd)
 		return -EINVAL;
 
+
 	mdp5_data = mfd_to_mdp5_data(mfd);
+
+
 
 	if (mfd->panel_info->panel_dead) {
 		pr_debug("early commit return\n");
@@ -4687,8 +4690,11 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 			mfd->mdp.signal_retire_fence && mdp5_data)
 			mfd->mdp.signal_retire_fence(mfd,
 						mdp5_data->retire_cnt);
-		return 0;
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 start */
+		//return 0;
+/* Huaqin modify for ZQL1650 by xieguoqiang at 2018/02/09 end */
 	}
+
 
 	output_layer_user = commit.commit_v1.output_layer;
 	if (output_layer_user) {

@@ -899,7 +899,9 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	struct qusb_phy *qphy;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	int ret = 0, size = 0;
+	/* Huaqin modify for ZQL1650-486 by liunianliang at 2018/03/19 start */
+	int ret = 0, size = 0, i = 0;
+	/* Huaqin modify for ZQL1650-486 by liunianliang at 2018/03/19 end */
 	const char *phy_type;
 	bool hold_phy_reset;
 
@@ -1091,6 +1093,11 @@ static int qusb_phy_probe(struct platform_device *pdev)
 				"qcom,qusb-phy-init-seq",
 				qphy->qusb_phy_init_seq,
 				qphy->init_seq_len);
+				/* Huaqin add for ZQL1650-486 by liunianliang at 2018/03/19 start */
+				for (i = 0; i < qphy->init_seq_len; i++) {
+					printk("qusb-phy-init-seq  value[%d] is 0x%x\n", i, qphy->qusb_phy_init_seq[i]);
+				}
+				/* Huaqin add for ZQL1650-486 by liunianliang at 2018/03/19 end */
 		} else {
 			dev_err(dev, "error allocating memory for phy_init_seq\n");
 		}
