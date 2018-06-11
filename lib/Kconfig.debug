@@ -145,7 +145,7 @@ config DEBUG_INFO_REDUCED
 
 config DEBUG_INFO_SPLIT
 	bool "Produce split debuginfo in .dwo files"
-	depends on DEBUG_INFO
+	depends on DEBUG_INFO && !FRV
 	help
 	  Generate debug info into separate .dwo files. This significantly
 	  reduces the build directory size for builds with DEBUG_INFO,
@@ -197,7 +197,7 @@ config ENABLE_MUST_CHECK
 config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
-	default 0 if KASAN
+	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
 	default 1024 if !64BIT
 	default 2048 if 64BIT
 	help
@@ -681,6 +681,19 @@ config DEBUG_STACKOVERFLOW
 source "lib/Kconfig.kmemcheck"
 
 source "lib/Kconfig.kasan"
+
+config DEBUG_REFCOUNT
+	bool "Verbose refcount checks"
+	help
+	  Say Y here if you want reference counters (refcount_t and kref) to
+	  generate WARNs on dubious usage. Without this refcount_t will still
+	  be a saturating counter and avoid Use-After-Free by turning it into
+	  a resource leak Denial-Of-Service.
+
+	  Use of this option will increase kernel text size but will alert the
+	  admin of potential abuse.
+
+	  If in doubt, say "N".
 
 endmenu # "Memory Debugging"
 
