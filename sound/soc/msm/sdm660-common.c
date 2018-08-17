@@ -30,6 +30,10 @@
 #define DEV_NAME_STR_LEN  32
 #define DEFAULT_MCLK_RATE 9600000
 
+#if defined(CONFIG_MACH_ASUS_X00TD) && defined(CONFIG_INPUT_SX9310)
+extern void sar_switch(bool);
+#endif
+
 struct dev_config {
 	u32 sample_rate;
 	u32 bit_format;
@@ -2531,9 +2535,14 @@ int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		}
 
 #ifdef CONFIG_MACH_ASUS_X00TD
-		if (index == TERT_MI2S)
+		if (index == TERT_MI2S) {
+#ifdef CONFIG_INPUT_SX9310
+			pr_debug("%s before open PA, close SAR!\n", __func__);
+			sar_switch(0);
+#endif
 			msm_cdc_pinctrl_select_active_state(
 						pdata->tert_mi2s_gpio_p);
+		}
 #endif
 	}
 	mutex_unlock(&mi2s_intf_conf[index].lock);
@@ -2576,9 +2585,14 @@ void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 	mutex_lock(&mi2s_intf_conf[index].lock);
 	if (--mi2s_intf_conf[index].ref_cnt == 0) {
 #ifdef CONFIG_MACH_ASUS_X00TD
-		if (index == TERT_MI2S)
+		if (index == TERT_MI2S) {
 			msm_cdc_pinctrl_select_sleep_state(
 						pdata->tert_mi2s_gpio_p);
+#ifdef CONFIG_INPUT_SX9310
+			pr_debug("%s after close PA, open SAR!\n", __func__);
+			sar_switch(1);
+#endif
+		}
 #endif
 
 		ret = msm_mi2s_set_sclk(substream, false);
