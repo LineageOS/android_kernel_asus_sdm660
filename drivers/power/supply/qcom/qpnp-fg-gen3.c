@@ -20,6 +20,9 @@
 #include <linux/platform_device.h>
 #include <linux/iio/consumer.h>
 #include <linux/qpnp/qpnp-revid.h>
+#ifdef CONFIG_MACH_ASUS_X00TD
+#include <linux/switch.h>
+#endif
 #include "fg-core.h"
 #include "fg-reg.h"
 
@@ -407,6 +410,13 @@ module_param_named(
 
 static int fg_restart;
 static bool fg_sram_dump;
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+struct battery_name {
+	struct switch_dev battery_switch_dev;
+	char battery_name_type[100];
+} battery_name;
+#endif
 
 /* All getters HERE */
 
@@ -943,6 +953,31 @@ static int fg_batt_missing_config(struct fg_chip *chip, bool enable)
 	return rc;
 }
 
+#ifdef CONFIG_MACH_ASUS_X00TD
+ssize_t battery_print_name(struct switch_dev *sdev, char *buf)
+{
+	return sprintf(buf, "%s\n", battery_name.battery_name_type);
+}
+
+static int battery_switch_register(void)
+{
+	int ret;
+
+	battery_name.battery_switch_dev.name = "battery";
+	battery_name.battery_switch_dev.print_name = battery_print_name;
+
+	ret = switch_dev_register(&battery_name.battery_switch_dev);
+	if (ret < 0)
+		return ret;
+
+	battery_name.battery_switch_dev.state = 0;
+	switch_set_state(&battery_name.battery_switch_dev,
+				battery_name.battery_switch_dev.state);
+
+	return 0;
+}
+#endif /* CONFIG_MACH_ASUS_X00TD */
+
 static int fg_get_batt_id(struct fg_chip *chip)
 {
 	int rc, ret, batt_id = 0;
@@ -1007,6 +1042,11 @@ static int fg_get_batt_profile(struct fg_chip *chip)
 		pr_err("battery type unavailable, rc:%d\n", rc);
 		return rc;
 	}
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+	strcpy(battery_name.battery_name_type, chip->bp.batt_type_str);
+	battery_switch_register();
+#endif
 
 	rc = of_property_read_u32(profile_node, "qcom,max-voltage-uv",
 			&chip->bp.float_volt_uv);
@@ -2725,6 +2765,7 @@ static void status_change_work(struct work_struct *work)
 		pr_err("Error in getting charging status, rc=%d\n", rc);
 		goto out;
 	}
+
 
 	chip->charge_status = prop.intval;
 	rc = power_supply_get_property(chip->batt_psy,
@@ -5504,6 +5545,21 @@ static void fg_gen3_shutdown(struct platform_device *pdev)
 {
 	struct fg_chip *chip = dev_get_drvdata(&pdev->dev);
 	int rc, bsoc;
+#ifdef CONFIG_MACH_ASUS_X00TD
+	u8 status;
+
+	rc = fg_read(chip, BATT_INFO_BATT_MISS_CFG(chip), &status, 1);
+	pr_debug("fg_gen3_shutdown status0=%d\n", status);
+
+	rc = fg_masked_write(chip, BATT_INFO_BATT_MISS_CFG(chip),
+				BM_FROM_BATT_ID_BIT, 0);
+	if (rc < 0)
+		pr_err("Error in writing to %04x, rc=%d\n",
+			BATT_INFO_BATT_MISS_CFG(chip), rc);
+
+	rc = fg_read(chip, BATT_INFO_BATT_MISS_CFG(chip), &status, 1);
+	pr_debug("fg_gen3_shutdown status1=%d\n", status);
+#endif
 
 	if (chip->charge_full) {
 		rc = fg_get_sram_prop(chip, FG_SRAM_BATT_SOC, &bsoc);

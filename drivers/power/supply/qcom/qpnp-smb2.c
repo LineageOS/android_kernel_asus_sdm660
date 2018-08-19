@@ -28,6 +28,15 @@
 #include "smb-lib.h"
 #include "storm-watch.h"
 #include <linux/pmic-voter.h>
+#ifdef CONFIG_MACH_ASUS_X00TD
+#include <linux/of_gpio.h>
+#include <linux/wakelock.h>
+#include <linux/uaccess.h>
+#include <linux/proc_fs.h>
+#include <asm-generic/errno-base.h>
+#include <linux/switch.h>
+#include <linux/qpnp/qpnp-adc.h>
+#endif
 
 #define SMB2_DEFAULT_WPWR_UW	8000000
 
@@ -179,6 +188,19 @@ struct smb2 {
 	bool			bad_part;
 };
 
+#ifdef CONFIG_MACH_ASUS_X00TD
+struct smb_charger *smbchg_dev;
+struct timespec last_jeita_time;
+struct wake_lock asus_chg_lock;
+int BR_countrycode;
+extern void smblib_asus_monitor_start(struct smb_charger *chg, int time);
+extern bool asus_get_prop_usb_present(struct smb_charger *chg);
+extern void asus_smblib_stay_awake(struct smb_charger *chg);
+extern void asus_smblib_relax(struct smb_charger *chg);
+/* global gpio_control */
+struct gpio_control *global_gpio;
+#endif
+
 static int __debug_mask;
 module_param_named(
 	debug_mask, __debug_mask, int, S_IRUSR | S_IWUSR
@@ -193,7 +215,7 @@ module_param_named(
 	try_sink_enabled, __try_sink_enabled, int, 0600
 );
 
-#define MICRO_1P5A		1500000
+#define MICRO_2P5A		2500000
 #define MICRO_P1A		100000
 #define OTG_DEFAULT_DEGLITCH_TIME_MS	50
 #define MIN_WD_BARK_TIME		16
@@ -244,7 +266,7 @@ static int smb2_parse_dt(struct smb2 *chip)
 	rc = of_property_read_u32(node,
 				"qcom,otg-cl-ua", &chg->otg_cl_ua);
 	if (rc < 0)
-		chg->otg_cl_ua = MICRO_1P5A;
+		chg->otg_cl_ua = MICRO_2P5A;
 
 	rc = of_property_read_u32(node,
 				"qcom,dc-icl-ua", &chip->dt.dc_icl_ua);
@@ -292,6 +314,11 @@ static int smb2_parse_dt(struct smb2 *chip)
 			return rc;
 		}
 	}
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+	if (of_find_property(node, "qcom,chg-alert-vadc", NULL))
+		dev_err(chg->dev, "get chg_alert vadc good rc = %d\n", rc);
+#endif
 
 	of_property_read_u32(node, "qcom,float-option", &chip->dt.float_option);
 	if (chip->dt.float_option < 0 || chip->dt.float_option > 4) {
@@ -947,6 +974,9 @@ static enum power_supply_property smb2_batt_props[] = {
 	POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
+#ifdef CONFIG_MACH_ASUS_X00TD
+	POWER_SUPPLY_PROP_CHARGING_ENABLED,
+#endif
 };
 
 static int smb2_batt_get_prop(struct power_supply *psy,
@@ -970,6 +1000,11 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 		rc = smblib_get_prop_input_suspend(chg, val);
 		break;
+#ifdef CONFIG_MACH_ASUS_X00TD
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		rc = smblib_get_prop_charging_enabled(chg, val);
+		break;
+#endif
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		rc = smblib_get_prop_batt_charge_type(chg, val);
 		break;
@@ -1078,6 +1113,11 @@ static int smb2_batt_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 		rc = smblib_set_prop_input_suspend(chg, val);
 		break;
+#ifdef CONFIG_MACH_ASUS_X00TD
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		rc = smblib_set_prop_charging_enabled(chg, val);
+		break;
+#endif
 	case POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL:
 		rc = smblib_set_prop_system_temp_level(chg, val);
 		break;
@@ -1465,6 +1505,42 @@ static int smb2_disable_typec(struct smb_charger *chg)
 
 	return rc;
 }
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+struct switch_dev usb_alert_dev;
+void register_usb_alert(void)
+{
+	int ret;
+
+	usb_alert_dev.name = "usb_connector";
+	usb_alert_dev.index = 0;
+
+	ret = switch_dev_register(&usb_alert_dev);
+	if (ret < 0)
+		pr_err("%s Failed to register switch usb_alert uevent\n",
+			__func__);
+	else
+		pr_info("%s Success to register switch usb_alert uevent\n",
+			__func__);
+}
+
+struct switch_dev usb_otg_dev;
+void register_usb_otg(void)
+{
+	int ret;
+
+	usb_otg_dev.name = "usb_otg";
+	usb_otg_dev.index = 0;
+
+	ret = switch_dev_register(&usb_otg_dev);
+	if (ret < 0)
+		pr_err("%s Failed to register switch usb_otg uevent\n",
+			__func__);
+	else
+		pr_info("%s Success to register switch usb_otg uevent\n",
+			__func__);
+}
+#endif /* CONFIG_MACH_ASUS_X00TD */
 
 static int smb2_init_hw(struct smb2 *chip)
 {
@@ -2244,6 +2320,305 @@ static void smb2_create_debugfs(struct smb2 *chip)
 
 #endif
 
+#ifdef CONFIG_MACH_ASUS_X00TD
+#define ATD_CHG_LIMIT_SOC	70
+int charger_limit_enable_flag;
+int charger_limit_value;
+static char charger_limit[8] = "0";
+static struct proc_dir_entry *limit_enable_entry;
+static struct proc_dir_entry *limit_entry;
+extern int asus_get_prop_batt_capacity(struct smb_charger *chg);
+#define CHARGER_LIMIT_EN_PROC_FILE	"driver/charger_limit_enable"
+#define CHARGER_LIMIT_PROC_FILE		"driver/charger_limit"
+
+ssize_t charger_limit_enable_read_proc(struct file *file, char __user *page,
+					size_t size, loff_t *ppos)
+{
+	char read_data[8] = {0};
+	int len = 0;
+	int rc;
+
+	/* CMD call again */
+	if (*ppos)
+		return 0;
+
+	len = sprintf(read_data, "%d\n", charger_limit_enable_flag);
+	pr_debug("%s, len = %d, data = %s\n", __func__, len, read_data);
+
+	rc = copy_to_user(page, read_data, len);
+	if (rc < 0)
+		return -EFAULT;
+
+	*ppos += len;
+
+	return len;
+}
+
+static ssize_t charger_limit_enable_write_proc(struct file *file,
+						const char __user *buff,
+						size_t size, loff_t *ppos)
+{
+	char write_data[32] = {0};
+	int rc;
+	int soc;
+	bool do_it, online;
+	union power_supply_propval pval = {0, };
+
+	smblib_get_prop_usb_online(smbchg_dev, &pval);
+	online = pval.intval;
+
+	if (size >= 32)
+		return -EFAULT;
+
+	if (copy_from_user(&write_data, buff, size))
+		return -EFAULT;
+
+	if (write_data[0] == '1') {
+		charger_limit_enable_flag = 1;
+		soc = asus_get_prop_batt_capacity(smbchg_dev);
+
+		do_it = charger_limit_value < soc;
+		if (do_it) {
+			rc = smblib_masked_write(smbchg_dev,
+						CHARGING_ENABLE_CMD_REG,
+						CHARGING_ENABLE_CMD_BIT, 1);
+			if (online)
+				power_supply_changed(smbchg_dev->batt_psy);
+		}
+
+		pr_debug("%s, write enable 1 soc = %d, limit-value= %d!\n",
+				__func__, soc, charger_limit_value);
+	} else {
+		charger_limit_enable_flag = 0;
+
+		rc = smblib_masked_write(smbchg_dev,
+					CHARGING_ENABLE_CMD_REG,
+					CHARGING_ENABLE_CMD_BIT, 0);
+		if (online)
+			power_supply_changed(smbchg_dev->batt_psy);
+
+		pr_debug("%s, write enable 0, no limit, charging !!\n",
+				__func__);
+	}
+
+	pr_debug("%s, charger_limit_enable_flag = %d\n", __func__,
+			charger_limit_enable_flag);
+
+	return size;
+}
+
+static const struct file_operations charger_limit_enable_proc_ops = {
+	.read = charger_limit_enable_read_proc,
+	.write = charger_limit_enable_write_proc,
+};
+
+ssize_t charger_limit_read_proc(struct file *file, char __user *page,
+				size_t size, loff_t *ppos)
+{
+	char read_data[8] = {0};
+	int len = 0;
+	int rc;
+
+	/* CMD call again */
+	if (*ppos)
+		return 0;
+
+	len = sprintf(read_data, "%d\n", charger_limit_value);
+	pr_debug("%s, len = %d, data = %s\n", __func__, len, read_data);
+
+	rc = copy_to_user(page, read_data, len);
+	if (rc < 0)
+		return -EFAULT;
+
+	*ppos += len;
+
+	return len;
+}
+
+static ssize_t charger_limit_write_proc(struct file *file,
+					const char __user *buff, size_t size,
+					loff_t *ppos)
+{
+	char write_data[8] = {0};
+	int soc;
+	bool do_it, online;
+	union power_supply_propval pval = {0, };
+
+	smblib_get_prop_usb_online(smbchg_dev, &pval);
+	online = pval.intval;
+
+	if (size >= 32)
+		return -EFAULT;
+
+	if (copy_from_user(&write_data, buff, size))
+		return -EFAULT;
+
+	if (write_data[0] == '0')
+		memset(charger_limit, 0, 8);
+	else
+		memcpy(charger_limit, write_data, 8);
+
+	charger_limit_value = (int)simple_strtol(charger_limit, NULL, 10);
+	soc = asus_get_prop_batt_capacity(smbchg_dev);
+
+	if (charger_limit_value > 100 || charger_limit_value < 0)
+		charger_limit_value = ATD_CHG_LIMIT_SOC;
+
+	charger_limit_enable_flag = !!charger_limit_value;
+	if (!charger_limit_enable_flag) {
+		smblib_masked_write(smbchg_dev, CHARGING_ENABLE_CMD_REG,
+					CHARGING_ENABLE_CMD_BIT, 0);
+		if (online)
+			power_supply_changed(smbchg_dev->batt_psy);
+	} else {
+		do_it = charger_limit_value < soc;
+		if (do_it) {
+			smblib_masked_write(smbchg_dev,
+						CHARGING_ENABLE_CMD_REG,
+						CHARGING_ENABLE_CMD_BIT, 1);
+			if (online)
+				power_supply_changed(smbchg_dev->batt_psy);
+		}
+	}
+
+	pr_debug("%s, limit-value= %d, current-soc = %d\n", __func__,
+			charger_limit_value, soc);
+	pr_debug("%s, limit-flag= %d\n", __func__, charger_limit_enable_flag);
+
+	return size;
+}
+
+static const struct file_operations charger_limit_proc_ops = {
+	.read = charger_limit_read_proc,
+	.write = charger_limit_write_proc,
+};
+
+static int init_proc_charger_limit(void)
+{
+	int ret;
+
+	limit_enable_entry = proc_create(CHARGER_LIMIT_EN_PROC_FILE, 0666,
+					NULL, &charger_limit_enable_proc_ops);
+	if (limit_enable_entry != NULL) {
+		pr_debug("create proc entry %s success",
+				CHARGER_LIMIT_EN_PROC_FILE);
+		ret = 0;
+	} else {
+		pr_err("create_proc entry %s failed\n",
+			CHARGER_LIMIT_EN_PROC_FILE);
+		return -ENOMEM;
+	}
+
+	limit_entry = proc_create(CHARGER_LIMIT_PROC_FILE, 0666, NULL,
+					&charger_limit_proc_ops);
+	if (limit_entry != NULL) {
+		pr_debug("create proc entry %s success",
+				CHARGER_LIMIT_PROC_FILE);
+		ret = 0;
+	} else {
+		pr_err("create_proc entry %s failed\n",
+			CHARGER_LIMIT_PROC_FILE);
+		return -ENOMEM;
+	}
+
+	return ret;
+}
+
+static void remove_proc_charger_limit(void)
+{
+	proc_remove(limit_enable_entry);
+	proc_remove(limit_entry);
+}
+
+int32_t get_ID_vadc_voltage(void)
+{
+	struct qpnp_vadc_chip *vadc_dev;
+	struct qpnp_vadc_result adc_result;
+	int32_t adc;
+
+	vadc_dev = qpnp_get_vadc(smbchg_dev->dev, "pm-gpio3");
+	if (IS_ERR(vadc_dev)) {
+		pr_err("%s: qpnp_get_vadc failed\n", __func__);
+		return PTR_ERR(vadc_dev);
+	}
+
+	/* Read the GPIO2 VADC channel with 1:1 scaling */
+	qpnp_vadc_read(vadc_dev, VADC_AMUX2_GPIO, &adc_result);
+	adc = (int) adc_result.physical;
+
+	/* uV to mV */
+	adc = adc / 1000;
+
+	pr_debug("%s: adc=%d adc_result.physical=%lld adc_result.chan=0x%x\n",
+			__func__, adc, adc_result.physical, adc_result.chan);
+
+	return adc;
+}
+
+#define COUNTRY_CODE_PATH "/persist/flag/countrycode.txt"
+
+void read_BR_countrycode_work(struct work_struct *work)
+{
+	struct file *fp = NULL;
+	mm_segment_t old_fs;
+	loff_t pos_lsts = 0;
+	char buf[32];
+	int readlen = 0;
+	int cnt = 5;
+
+	fp = filp_open(COUNTRY_CODE_PATH, O_RDONLY, 0);
+	if (IS_ERR_OR_NULL(fp)) {
+		/* No such file or directory */
+		pr_err("Open (%s) failed !!\n", COUNTRY_CODE_PATH);
+		if (--cnt >= 0)
+			schedule_delayed_work(
+					&smbchg_dev->read_countrycode_work,
+					msecs_to_jiffies(3000));
+		return;
+	}
+
+	/* For purpose that can use read/write system call */
+	if (fp->f_op != NULL) {
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		pos_lsts = 0;
+
+		readlen = vfs_read(fp, buf,strlen(buf), &pos_lsts);
+		if (readlen < 0) {
+			set_fs(old_fs);
+			filp_close(fp, NULL);
+			if (--cnt >= 0)
+				schedule_delayed_work(
+					&smbchg_dev->read_countrycode_work,
+					msecs_to_jiffies(3000));
+			return;
+		}
+
+		buf[readlen] = '\0';
+	} else {
+		pr_err("Read (%s) error\n", COUNTRY_CODE_PATH);
+		if (--cnt >= 0)
+			schedule_delayed_work(
+					&smbchg_dev->read_countrycode_work,
+					msecs_to_jiffies(3000));
+		return;
+	}
+
+	if (strcmp(buf, "BR") == 0)
+		BR_countrycode = COUNTRY_BR;
+	else if (strcmp(buf, "IN") == 0)
+		BR_countrycode = COUNTRY_IN;
+	else
+		BR_countrycode = COUNTRY_OTHER;
+
+	pr_info("country code: %s, type %d\n", buf, BR_countrycode);
+	set_fs(old_fs);
+	filp_close(fp, NULL);
+
+	return;
+}
+#endif /* CONFIG_MACH_ASUS_X00TD */
+
 static int smb2_probe(struct platform_device *pdev)
 {
 	struct smb2 *chip;
@@ -2251,10 +2626,23 @@ static int smb2_probe(struct platform_device *pdev)
 	int rc = 0;
 	union power_supply_propval val;
 	int usb_present, batt_present, batt_health, batt_charge_type;
+#ifdef CONFIG_MACH_ASUS_X00TD
+	struct gpio_control *gpio_ctrl;
+	u8 HVDVP_reg, USBIN_AICL_reg;
+#endif
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+	/* ASUS BSP: allocate GPIO control */
+	pr_debug("ADC_SW_EN=%d, ADCPWREN_PMI_GP1=%d\n", gpio_ctrl->ADC_SW_EN,
+			gpio_ctrl->ADCPWREN_PMI_GP1);
+	gpio_ctrl = devm_kzalloc(&pdev->dev, sizeof(*gpio_ctrl), GFP_KERNEL);
+	if (!gpio_ctrl)
+		return -ENOMEM;
+#endif
 
 	chg = &chip->chg;
 	chg->dev = &pdev->dev;
@@ -2265,12 +2653,58 @@ static int smb2_probe(struct platform_device *pdev)
 	chg->mode = PARALLEL_MASTER;
 	chg->irq_info = smb2_irqs;
 	chg->name = "PMI";
+#ifdef CONFIG_MACH_ASUS_X00TD
+	wake_lock_init(&asus_chg_lock, WAKE_LOCK_SUSPEND, "asus_chg_lock");
+
+	/* ASUS BSP: add globe device struct */
+	smbchg_dev = chg;
+
+	/* ASUS BSP: add gpio control struct */
+	global_gpio = gpio_ctrl;
+
+	/* ASUS BSP: Request ADC_SW_EN-gpios59, ADCPWREN_PMI_GP1-gpios34 */
+	gpio_ctrl->ADC_SW_EN = of_get_named_gpio(pdev->dev.of_node,
+						"ADC_SW_EN-gpios59", 0);
+
+	rc = gpio_request(gpio_ctrl->ADC_SW_EN, "ADC_SW_EN-gpios59");
+	if (rc)
+		pr_err("%s: failed to request ADC_SW_EN-gpios59\n",
+			__func__);
+	else
+		pr_debug("%s: Success to request ADC_SW_EN-gpios59 %d\n",
+				__func__, (int)gpio_ctrl->ADC_SW_EN);
+
+	gpio_ctrl->ADCPWREN_PMI_GP1 = of_get_named_gpio(pdev->dev.of_node,
+						"ADCPWREN_PMI_GP1-gpios34", 0);
+
+	rc = gpio_request(gpio_ctrl->ADCPWREN_PMI_GP1,
+				"ADCPWREN_PMI_GP1-gpios34");
+	if (rc)
+		pr_err("%s: failed to request ADCPWREN_PMI_GP1-gpios34\n",
+			__func__);
+	else {
+		pr_debug("%s: Success to request ADCPWREN_PMI_GP1-gpios34 %d\n",
+				__func__, (int)gpio_ctrl->ADCPWREN_PMI_GP1);
+
+		gpio_direction_output(gpio_ctrl->ADCPWREN_PMI_GP1, 0);
+	}
+
+	rc = gpio_get_value(gpio_ctrl->ADCPWREN_PMI_GP1);
+	pr_debug("ADCPWREN_PMI_GP1 init H/L %d\n", rc);
+#endif /* CONFIG_MACH_ASUS_X00TD */
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);
 	if (!chg->regmap) {
 		pr_err("parent regmap is missing\n");
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+	INIT_DELAYED_WORK(&chg->read_countrycode_work,
+				read_BR_countrycode_work);
+	schedule_delayed_work(&chg->read_countrycode_work,
+				msecs_to_jiffies(8000));
+#endif
 
 	rc = smb2_chg_config_init(chip);
 	if (rc < 0) {
@@ -2379,6 +2813,10 @@ static int smb2_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
+#ifdef CONFIG_MACH_ASUS_X00TD
+	init_proc_charger_limit();
+#endif
+
 	smb2_create_debugfs(chip);
 
 	rc = smblib_get_prop_usb_present(chg, &val);
@@ -2411,6 +2849,27 @@ static int smb2_probe(struct platform_device *pdev)
 
 	device_init_wakeup(chg->dev, true);
 
+#ifdef CONFIG_MACH_ASUS_X00TD
+	rc = smblib_read(smbchg_dev, USBIN_OPTIONS_1_CFG_REG, &HVDVP_reg);
+	rc = smblib_masked_write(smbchg_dev, USBIN_OPTIONS_1_CFG_REG,
+					HVDCP_EN_BIT, 0x0);
+	rc = smblib_read(smbchg_dev, USBIN_OPTIONS_1_CFG_REG, &HVDVP_reg);
+	if (rc < 0)
+		pr_err("%s: Failed to set USBIN_OPTIONS_1_CFG_REG\n", __func__);
+
+	rc = smblib_read(smbchg_dev, USBIN_AICL_OPTIONS_CFG_REG,
+				&USBIN_AICL_reg);
+	rc = smblib_masked_write(smbchg_dev, USBIN_AICL_OPTIONS_CFG_REG,
+				SUSPEND_ON_COLLAPSE_USBIN_BIT, 0x0);
+	rc = smblib_read(smbchg_dev, USBIN_AICL_OPTIONS_CFG_REG,
+				&USBIN_AICL_reg);
+	if (rc < 0)
+		pr_err("%s: Failed to set USBIN_OPTIONS_1_CFG_REG\n", __func__);
+
+	register_usb_alert();
+	register_usb_otg();
+#endif
+
 	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
 		usb_present, chg->real_charger_type,
 		batt_present, batt_health, batt_charge_type);
@@ -2436,8 +2895,41 @@ cleanup:
 	smblib_deinit(chg);
 
 	platform_set_drvdata(pdev, NULL);
+#ifdef CONFIG_MACH_ASUS_X00TD
+	remove_proc_charger_limit();
+#endif
 	return rc;
 }
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+#define JEITA_MINIMUM_INTERVAL (30)
+
+static int smb2_resume(struct device *dev)
+{
+	struct timespec mtNow;
+	int nextJEITAinterval;
+
+	if (!asus_get_prop_usb_present(smbchg_dev))
+		return 0;
+
+	asus_smblib_stay_awake(smbchg_dev);
+	mtNow = current_kernel_time();
+
+	/* BSP Austin_Tseng: if next JEITA time less than 30s,
+	 * do JEITA (next JEITA time = last JEITA time + 60s)
+	 */
+	nextJEITAinterval = 60 - (mtNow.tv_sec - last_jeita_time.tv_sec);
+	if (nextJEITAinterval <= JEITA_MINIMUM_INTERVAL) {
+		smblib_asus_monitor_start(smbchg_dev, 0);
+		cancel_delayed_work(&smbchg_dev->asus_batt_RTC_work);
+	} else {
+		smblib_asus_monitor_start(smbchg_dev, nextJEITAinterval * 1000);
+		asus_smblib_relax(smbchg_dev);
+	}
+
+	return 0;
+}
+#endif /* CONFIG_MACH_ASUS_X00TD */
 
 static int smb2_remove(struct platform_device *pdev)
 {
@@ -2476,6 +2968,12 @@ static void smb2_shutdown(struct platform_device *pdev)
 				 AUTO_SRC_DETECT_BIT, AUTO_SRC_DETECT_BIT);
 }
 
+#ifdef CONFIG_MACH_ASUS_X00TD
+static const struct dev_pm_ops smb2_pm_ops = {
+	.resume		= smb2_resume,
+};
+#endif
+
 static const struct of_device_id match_table[] = {
 	{ .compatible = "qcom,qpnp-smb2", },
 	{ },
@@ -2486,6 +2984,9 @@ static struct platform_driver smb2_driver = {
 		.name		= "qcom,qpnp-smb2",
 		.owner		= THIS_MODULE,
 		.of_match_table	= match_table,
+#ifdef CONFIG_MACH_ASUS_X00TD
+		.pm		= &smb2_pm_ops,
+#endif
 	},
 	.probe		= smb2_probe,
 	.remove		= smb2_remove,

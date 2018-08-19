@@ -331,6 +331,11 @@ static void msm_restart_prepare(const char *cmd)
 			unsigned long reset_reason;
 			int ret;
 			ret = kstrtoul(cmd + 4, 16, &code);
+#ifdef CONFIG_MACH_ASUS_X00TD
+			if (!ret && code == 8)
+				qpnp_pon_set_restart_reason(
+					PON_RESTART_REASON_ASUS_UNLOCK);
+#endif
 			if (!ret) {
 				/* Bit-2 to bit-7 of SOFT_RB_SPARE for hard
 				 * reset reason:
