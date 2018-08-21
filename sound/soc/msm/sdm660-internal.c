@@ -485,6 +485,7 @@ done:
 static int is_ext_spk_gpio_support(struct platform_device *pdev,
 				   struct msm_asoc_mach_data *pdata)
 {
+#ifndef CONFIG_MACH_ASUS_X00TD
 	const char *spk_ext_pa = "qcom,msm-spk-ext-pa";
 
 	pr_debug("%s:Enter\n", __func__);
@@ -502,11 +503,14 @@ static int is_ext_spk_gpio_support(struct platform_device *pdev,
 			return -EINVAL;
 		}
 	}
+#endif
+
 	return 0;
 }
 
 static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 {
+#ifndef CONFIG_MACH_ASUS_X00TD
 	struct snd_soc_card *card = codec->component.card;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret;
@@ -539,6 +543,8 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 			return ret;
 		}
 	}
+#endif /* !CONFIG_MACH_ASUS_X00TD */
+
 	return 0;
 }
 
@@ -2404,6 +2410,25 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 		.ignore_pmdown_time = 1,
 		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA6,
 	},
+#ifdef CONFIG_MACH_ASUS_X00TD
+	{/* hw:x,40 */
+		.name = "Tertiary MI2S_TX Hostless",
+		.stream_name = "Tertiary MI2S_TX Hostless",
+		.cpu_dai_name = "TERT_MI2S_TX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dpcm_capture = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		/* this dailink has playback support */
+		.ignore_pmdown_time = 1,
+		/* This dainlink has MI2S support */
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
+#endif
 };
 
 
@@ -2424,6 +2449,17 @@ static struct snd_soc_dai_link msm_int_wsa_dai[] = {
 		.ignore_pmdown_time = 1,
 	},
 };
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+static struct snd_soc_dai_link_component tfa98xx_codecs[] = {
+	{
+		.name     = "tfa98xx.6-0034",
+		.of_node  = NULL,
+		.dai_name = "tfa98xx-aif-6-34",
+	},
+
+};
+#endif
 
 static struct snd_soc_dai_link msm_int_be_dai[] = {
 	/* Backend I2S DAI Links */
@@ -2765,8 +2801,13 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.stream_name = "Tertiary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.2",
 		.platform_name = "msm-pcm-routing",
+#ifdef CONFIG_MACH_ASUS_X00TD
+		.codecs = tfa98xx_codecs,
+		.num_codecs = 1,
+#else
 		.codec_name = "msm-stub-codec.1",
 		.codec_dai_name = "msm-stub-rx",
+#endif
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.be_id = MSM_BACKEND_DAI_TERTIARY_MI2S_RX,
@@ -2780,8 +2821,13 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.stream_name = "Tertiary MI2S Capture",
 		.cpu_dai_name = "msm-dai-q6-mi2s.2",
 		.platform_name = "msm-pcm-routing",
+#ifdef CONFIG_MACH_ASUS_X00TD
+		.codecs = tfa98xx_codecs,
+		.num_codecs = 1,
+#else
 		.codec_name = "msm-stub-codec.1",
 		.codec_dai_name = "msm-stub-tx",
+#endif
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.be_id = MSM_BACKEND_DAI_TERTIARY_MI2S_TX,
