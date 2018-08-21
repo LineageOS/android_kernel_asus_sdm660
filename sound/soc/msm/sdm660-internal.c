@@ -15,6 +15,9 @@
 #include <linux/module.h>
 #include <linux/mfd/msm-cdc-pinctrl.h>
 #include <sound/pcm_params.h>
+#ifdef CONFIG_MACH_ASUS_X00TD
+#include <linux/delay.h>
+#endif
 #include "qdsp6v2/msm-pcm-routing-v2.h"
 #include "sdm660-common.h"
 #include "../codecs/sdm660_cdc/msm-digital-cdc.h"
@@ -481,6 +484,23 @@ static int msm_config_hph_compander_gpio(bool enable,
 done:
 	return ret;
 }
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+extern int hph_ext_en_gpio;
+extern int hph_ext_sw_gpio;
+
+static int is_ext_hph_gpio_support(struct platform_device *pdev,
+				   struct msm_asoc_mach_data *pdata)
+{
+	return 0;
+}
+
+
+static int enable_hph_ext_sw(struct snd_soc_codec *codec, int enable)
+{
+	return 0;
+}
+#endif
 
 static int is_ext_spk_gpio_support(struct platform_device *pdev,
 				   struct msm_asoc_mach_data *pdata)
@@ -1313,7 +1333,11 @@ static void *def_msm_int_wcd_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm_int_wcd_cal)->X) = (Y))
+#ifdef CONFIG_MACH_ASUS_X00TD
+	S(v_hs_max, 1700);
+#else
 	S(v_hs_max, 1500);
+#endif
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm_int_wcd_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
@@ -1338,10 +1362,17 @@ static void *def_msm_int_wcd_mbhc_cal(void)
 	 */
 	btn_low[0] = 75;
 	btn_high[0] = 75;
+#ifdef CONFIG_MACH_ASUS_X00TD
+	btn_low[1] = 225;
+	btn_high[1] = 225;
+	btn_low[2] = 450;
+	btn_high[2] = 450;
+#else
 	btn_low[1] = 150;
 	btn_high[1] = 150;
 	btn_low[2] = 225;
 	btn_high[2] = 225;
+#endif
 	btn_low[3] = 450;
 	btn_high[3] = 450;
 	btn_low[4] = 500;
@@ -1405,6 +1436,9 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_sync(dapm);
 
 	msm_anlg_cdc_spk_ext_pa_cb(enable_spk_ext_pa, ana_cdc);
+#ifdef CONFIG_MACH_ASUS_X00TD
+	msm_anlg_cdc_hph_ext_sw_cb(enable_hph_ext_sw, ana_cdc);
+#endif
 	msm_dig_cdc_hph_comp_cb(msm_config_hph_compander_gpio, dig_cdc);
 
 	card = rtd->card->snd_card;
@@ -3220,6 +3254,14 @@ static int msm_internal_init(struct platform_device *pdev,
 		dev_dbg(&pdev->dev,
 			"%s: doesn't support external speaker pa\n",
 			__func__);
+
+#ifdef CONFIG_MACH_ASUS_X00TD
+	ret = is_ext_hph_gpio_support(pdev, pdata);
+	if (ret < 0)
+		dev_dbg(&pdev->dev,
+			"%s: doesn't support external headphone switch\n",
+			__func__);
+#endif
 
 	ret = of_property_read_string(pdev->dev.of_node,
 				      hs_micbias_type, &type);

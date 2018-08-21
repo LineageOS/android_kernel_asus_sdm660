@@ -107,6 +107,10 @@ struct msm_asoc_mach_data {
 	struct sdm660_codec sdm660_codec_fn;
 	struct snd_info_entry *codec_root;
 	int spk_ext_pa_gpio;
+#ifdef CONFIG_MACH_ASUS_X00TD
+	int hph_ext_en_gpio;
+	int hph_ext_sw_gpio;
+#endif
 	int mclk_freq;
 	bool native_clk_set;
 	int lb_mode;
