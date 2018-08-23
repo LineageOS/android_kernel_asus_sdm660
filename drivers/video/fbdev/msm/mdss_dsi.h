@@ -602,6 +602,9 @@ struct dsi_status_data {
 	struct notifier_block fb_notifier;
 	struct delayed_work check_status;
 	struct msm_fb_data_type *mfd;
+/* Huaqin duchangguo modify for disabling esd check when panel is not connect before boot start*/
+	bool is_first_check;
+/* Huaqin duchangguo modify for disabling esd check when panel is not connect before boot end*/
 };
 
 void mdss_dsi_read_hw_revision(struct mdss_dsi_ctrl_pdata *ctrl);

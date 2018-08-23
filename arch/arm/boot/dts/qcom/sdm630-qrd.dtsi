@@ -197,6 +197,9 @@
 	vdd-supply = <&pm660l_l4>;
 	qcom,vdd-voltage-level = <2950000 2950000>;
 	qcom,vdd-current-level = <200 570000>;
+	// Huaqin add for emmc vdd always on by chenhuazhen at 2018/04/24  start
+	qcom,vdd-always-on;
+	// Huaqin add for emmc vdd always on by chenhuazhen at 2018/04/24  end
 
 	/* device communication power supply */
 	vdd-io-supply = <&pm660_l8>;

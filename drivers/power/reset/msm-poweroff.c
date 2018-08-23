@@ -333,6 +333,11 @@ static void msm_restart_prepare(const char *cmd)
 			unsigned long code;
 			int ret;
 			ret = kstrtoul(cmd + 4, 16, &code);
+			/* Huaqin add for ZQL1650-1168 by liunianliang at 2018/04/18 start */
+			if (!ret && code == 8)
+				qpnp_pon_set_restart_reason(
+					PON_RESTART_REASON_ASUS_UNLOCK);
+			/* Huaqin add for ZQL1650-1168 by liunianliang at 2018/04/18 end */
 			if (!ret)
 				__raw_writel(0x6f656d00 | (code & 0xff),
 					     restart_reason);

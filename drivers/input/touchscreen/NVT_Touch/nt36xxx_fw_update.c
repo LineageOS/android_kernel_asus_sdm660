@@ -18,6 +18,9 @@
 
 #include <linux/delay.h>
 #include <linux/firmware.h>
+// Huaqin add for when fw error resolution  by zhengwu.lu. at 2018/03/27 For Platform start
+#include <linux/string.h>
+// Huaqin add for when fw error resolution  by zhengwu.lu. at 2018/03/27 For Platform end
 
 #include "nt36xxx.h"
 
@@ -872,6 +875,102 @@ int32_t Update_Firmware(void)
 	return ret;
 }
 
+// Huaqin add for when fw error resolution  by zhengwu.lu. at 2018/03/27 For Platform start
+/*******************************************************
+Description:
+	Novatek touchscreen read flash end flag function.
+
+return:
+	Executive outcomes. 0---succeed. negative---failed.
+*******************************************************/
+#define NVT_FLASH_END_FLAG_LEN 3
+int32_t nvt_read_flash_end_flag(void)
+{
+	uint8_t buf[8] = {0};
+	uint8_t nvt_end_flag[NVT_FLASH_END_FLAG_LEN+1]={0};
+	int32_t ret = 0;
+
+	// Step 1 : initial bootloader
+	ret = Init_BootLoader();
+	if (ret) {
+		return ret;
+	}
+
+	// Step 2 : Resume PD
+	ret = Resume_PD();
+	if (ret) {
+		return ret;
+	}
+
+	// Step 3 : unlock
+	buf[0] = 0x00;
+	buf[1] = 0x35;
+	ret = CTP_I2C_WRITE(ts->client, I2C_HW_Address, buf, 2);
+	if (ret < 0) {
+		NVT_ERR("write unlock error!!(%d)\n", ret);
+		return ret;
+	}
+	msleep(10);
+
+	//Step 4 : Flash Read Command
+	buf[0] = 0x00;
+	buf[1] = 0x03;
+	buf[2] = 0x01;	//Addr_H
+	buf[3] = 0xAF;	//Addr_M
+	buf[4] = 0xFD;	//Addr_L
+	buf[5] = 0x00;	//Len_H
+	buf[6] = 0x03;	//Len_L
+	ret = CTP_I2C_WRITE(ts->client, I2C_HW_Address, buf, 7);
+	if (ret < 0) {
+		NVT_ERR("write Read Command error!!(%d)\n", ret);
+		return ret;
+	}
+	msleep(10);
+
+	// Check 0xAA (Read Command)
+	buf[0] = 0x00;
+	buf[1] = 0x00;
+	ret = CTP_I2C_READ(ts->client, I2C_HW_Address, buf, 2);
+	if (ret < 0) {
+		NVT_ERR("Check 0xAA (Read Command) error!!(%d)\n", ret);
+		return ret;
+	}
+	if (buf[1] != 0xAA) {
+		NVT_ERR("Check 0xAA (Read Command) error!! status=0x%02X\n", buf[1]);
+		return -1;
+	}
+
+	msleep(10);
+
+	//Step 5 : Read Flash Data
+	buf[0] = 0xFF;
+	buf[1] = 0x01;
+	buf[2] = 0x40;
+	ret = CTP_I2C_WRITE(ts->client, I2C_BLDR_Address, buf, 3);
+	if (ret < 0) {
+		NVT_ERR("change index error!! (%d)\n", ret);
+		return ret;
+	}
+	msleep(10);
+
+	// Read Back
+	buf[0] = 0x00;
+	ret = CTP_I2C_READ(ts->client, I2C_BLDR_Address, buf, 6);
+	if (ret < 0) {
+		NVT_ERR("Read Back error!! (%d)\n", ret);
+		return ret;
+	}
+
+	//buf[3:5] => NVT End Flag
+	strncpy(nvt_end_flag, &buf[3], NVT_FLASH_END_FLAG_LEN);
+	NVT_LOG("nvt_end_flag=%s (%02X %02X %02X)\n", nvt_end_flag, buf[3], buf[4], buf[5]);
+
+	if (strncmp(nvt_end_flag, "NVT", 3) == 0)
+		return 0;
+	else
+		return -1;
+}
+// Huaqin add for when fw error resolution  by zhengwu.lu. at 2018/03/27 For Platform end
 /*******************************************************
 Description:
 	Novatek touchscreen update firmware when booting
@@ -923,9 +1022,22 @@ void Boot_Update_Firmware(struct work_struct *work)
 		NVT_LOG("firmware version not match\n");
 		Update_Firmware();
 	} else {
+// Huaqin add for when fw error resolution  by zhengwu.lu. at 2018/03/27 For Platform start
+		// Read NVT flag
+		ret = nvt_read_flash_end_flag();
+		if (ret) {
+			NVT_LOG("read flash end flag failed\n");
+			Update_Firmware();
+		}
+
 		// Bootloader Reset
 		nvt_bootloader_reset();
-		nvt_check_fw_reset_state(RESET_STATE_INIT);
+		ret = nvt_check_fw_reset_state(RESET_STATE_INIT);
+		if (ret) {
+			NVT_LOG("check fw reset state failed\n");
+			Update_Firmware();
+		}
+// Huaqin add for when fw error resolution  by zhengwu.lu. at 2018/03/27 For Platform end
 	}
 
 	mutex_unlock(&ts->lock);

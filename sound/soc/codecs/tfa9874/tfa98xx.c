@@ -2798,18 +2798,19 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 		mutex_unlock(&tfa98xx->dsp_lock);
 	} else {
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+/* Huaqin add for TT:1212051 by xudayi at 2018/08/02 start */
 #ifdef CONFIG_SND_SOC_TFA9874
 		{
 			tfa98xx->pstream = 1;
-
-			tfa98xx_adsp_send_calib_values(tfa98xx);
-
 			/* Start DSP */
 			if ((tfa98xx->flags & TFA98XX_FLAG_CHIP_SELECTED) &&
 					(tfa98xx->dsp_init != TFA98XX_DSP_INIT_PENDING))
 				queue_delayed_work(tfa98xx->tfa98xx_wq, &tfa98xx->init_work, 0);
-		}else
+
+			tfa98xx_adsp_send_calib_values(tfa98xx);
+		}else {
 			tfa98xx->cstream = 1;
+		}
 #else
 		tfa98xx->pstream = 1;
 		else
@@ -2822,6 +2823,7 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 				queue_delayed_work(tfa98xx->tfa98xx_wq,
 						&tfa98xx->init_work, 0);
 #endif
+/* Huaqin add for TT:1212051 by xudayi at 2018/08/02 end */
 	}
 
 	return 0;

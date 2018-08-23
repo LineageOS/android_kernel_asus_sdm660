@@ -95,7 +95,13 @@
 #define SLIMBUS_QMI_INS_ID 0
 
 /* QMI response timeout of 500ms */
+/* Huaqin add by daixianze at 2018/03/12 start */
+#ifndef HQ_BUILD_FACTORY
 #define SLIM_QMI_RESP_TOUT 1000
+#else
+#define SLIM_QMI_RESP_TOUT 5000
+#endif
+/* Huaqin add by daixianze at 2018/03/12 end */
 
 #define PGD_THIS_EE(r, v) ((v) ? PGD_THIS_EE_V2(r) : PGD_THIS_EE_V1(r))
 #define PGD_PORT(r, p, v) ((v) ? PGD_PORT_V2(r, p) : PGD_PORT_V1(r, p))

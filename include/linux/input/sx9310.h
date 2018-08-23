@@ -147,10 +147,12 @@ static struct smtc_reg_data sx9310_i2c_reg_setup[] = {
                 .val = 0x0D,
                 },
 		/*Huaqin modify sarsensor reg by chenyijun5 at 2018/03/12 end*/
+		/*Huaqin modify sarsensor reg by zhuqiang at 2018/05/10 start*/
                 {
                 .reg = SX9310_CPS_CTRL5_REG,
-                .val = 0xC1,
+                .val = 0x43,
                 },
+		/*Huaqin modify sarsensor reg by zhuqiang at 2018/05/10 end*/
                 {
                 .reg = SX9310_CPS_CTRL6_REG,
                 .val = 0x20,
@@ -221,10 +223,12 @@ static struct smtc_reg_data sx9310_i2c_reg_setup[] = {
                 .reg = SX9310_SAR_CTRL2_REG,
                 .val = 0x0C,
                 },
+		/*Huaqin modify sarsensor reg by zhuqiang at 2018/05/10 start*/
                 {
                 .reg = SX9310_CPS_CTRL0_REG,
-                .val = 0x51,        //0x51 for cs0
+                .val = 0x21,        //0x51 for cs0
                 },
+		/*Huaqin modify sarsensor reg by zhuqiang at 2018/05/10 end*/
         };
 
 static struct _buttonInfo psmtcButtons[] = {

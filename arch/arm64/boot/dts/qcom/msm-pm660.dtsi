@@ -374,11 +374,11 @@
 
 			qcom,wipower-max-uw = <5000000>;
 			dpdm-supply = <&qusb_phy0>;
-/* Huaqin modify for ZQL1650 Add thermal config by fangaijun at 2018/02/28 start */
+/* Huaqin modify for ZQL1650-70 Identify Adapter ID by fangaijun at 2018/02/8 start */
 			qcom,thermal-mitigation
 					= <3000000 2500000 2000000 1500000
 						1000000 500000>;
-/* Huaqin modify for ZQL1650 Add thermal config by fangaijun at 2018/02/28 end */
+/* Huaqin modify for ZQL1650-70 Identify Adapter ID by fangaijun at 2018/02/8 end */
 			// Added by huqinmin remove Type-C for micro-usb 2018/1/31 begin
 			qcom,micro-usb;
 			// Added by huqinmin remove Type-C for micro-usb 2018/1/31 end
@@ -616,19 +616,24 @@
 					   "rradc_die_temp";
 			qcom,rradc-base = <0x4500>;
 			qcom,fg-esr-timer-awake = <96 96>;
-			qcom,fg-esr-timer-asleep = <256 256>;
+/* Huaqin modify for ZQL1650-1244 A periodic pulse of 14s occurs when the phone idel by fangaijun  at 2018/05/14 start */
+			qcom,fg-esr-timer-asleep = <160 256>;
+/* Huaqin modify for ZQL1650-1244 A periodic pulse of 14s occurs when the phone idel by fangaijun  at 2018/05/14 end */
 			qcom,fg-esr-timer-charging = <0 96>;
 			qcom,cycle-counter-en;
 /* Huaqin modify for ZQL1650 by fangaijun  at 2018/02/1 start */
 			qcom,fg-cutoff-voltage = <3400>;
-			qcom,fg-empty-voltage = <3000>;
+			qcom,fg-empty-voltage = <2800>;
 /* Huaqin modify for ZQL1650 by fangaijun  at 2018/02/1 end */
-/* Huaqin modify for ZQL1650 add cc-cv voltage by fangaijun  at 2018/03/9 start */
+
+/* Huaqin modify for ZQL1650 remove cc-cv voltage by fangaijun  at 2018/03/22 start */
 			//qcom,fg-cc-cv-threshold-mv = <4340>;
-/* Huaqin modify for ZQL1650 add cc-cv voltage by fangaijun  at 2018/03/9 end */
+/* Huaqin modify for ZQL1650 remove cc-cv voltage by fangaijun  at 2018/03/22 end */
 /* Huaqin modify for ZQL1650-586 optimize low temperature discharging soc deviation by fangaijun  at 2018/03/22 start */
-			qcom,fg-esr-tight-filter-micro-pct = <2500>;
-			qcom,fg-esr-broad-filter-micro-pct = <2700>;
+/* Huaqin modify for ZQL1650-1096 optimize normal temperature charging soc deviation by fangaijun  at 2018/04/27 start */
+			qcom,fg-esr-tight-filter-micro-pct = <20000>;
+			qcom,fg-esr-broad-filter-micro-pct = <25000>;
+/* Huaqin modify for ZQL1650-1096 optimize normal temperature charging soc deviation by fangaijun  at 2018/04/27 end */
 			qcom,fg-esr-tight-lt-filter-micro-pct = <2000>;
 			qcom,fg-esr-broad-lt-filter-micro-pct = <2200>;
 			qcom,slope-limit-temp-threshold = <150>;

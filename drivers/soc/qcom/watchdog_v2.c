@@ -716,7 +716,10 @@ static void init_watchdog_data(struct msm_watchdog_data *wdog_dd)
 	wdog_dd->user_pet_complete = true;
 	wdog_dd->user_pet_enabled = false;
 	wake_up_process(wdog_dd->watchdog_task);
-	init_timer_deferrable(&wdog_dd->pet_timer);
+	/* Huaqin modify for ZQL1650-1473 by liunianliang at 2018/05/30 start */
+	//init_timer_deferrable(&wdog_dd->pet_timer);
+	init_timer(&wdog_dd->pet_timer);
+	/* Huaqin modify for ZQL1650-1473 by liunianliang at 2018/05/30 start */
 	wdog_dd->pet_timer.data = (unsigned long)wdog_dd;
 	wdog_dd->pet_timer.function = pet_task_wakeup;
 	wdog_dd->pet_timer.expires = jiffies + delay_time;

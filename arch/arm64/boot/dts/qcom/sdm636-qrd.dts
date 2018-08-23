@@ -25,6 +25,9 @@
 /* Huaqin modify for lcm bring up by xieguoqiang at 2018/02/26 start */
 #include "dsi-panel-nt36672-1080p-video.dtsi"
 /* Huaqin modify for ZQL1650-140 by xieguoqiang at 2018/02/26 end */
+/* Huaqin modify for ZQL1650-1356 by qimaokang at 2018/05/22 start */
+#include "dsi-panel-td4310-1080p-video-txd.dtsi"
+/* Huaqin modify for ZQL1650-1356 by qimaokang at 2018/05/22 end */
 / {
 	model = "Qualcomm Technologies, Inc. SDM 636 PM660 + PM660L QRD";
 	compatible = "qcom,sdm636-qrd", "qcom,sdm636", "qcom,qrd";
@@ -97,6 +100,11 @@
   qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
 };
 /* Huaqin modify for lcm bring up by xieguoqiang at 2018/02/26 end */
+/* Huaqin modify for ZQL1650-1356 by qimaokang at 2018/05/22 start */
+&dsi_td4310_1080p_video_txd {
+	  qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+/* Huaqin modify for ZQL1650-1356 by qimaokang at 2018/05/22 end */
 &soc {
 	hbtp {
 		compatible = "qcom,hbtp-input";
@@ -219,7 +227,9 @@
 		/* Huaqin modify for psensor led current by chenyijun5 at 2018/02/05 start */
 		stk,ledctrl-reg = <0xFF>;
 		/* Huaqin modify for psensor led current by chenyijun5 at 2018/02/05 end */
-		stk,wait-reg = <0x0F>;
+		/* Huaqin modify for alsps wait reg by chenyijun5 at 2018/04/08 start */
+		stk,wait-reg = <0x0A>;
+		/* Huaqin modify for alsps wait reg by chenyijun5 at 2018/04/08 end */
 		/* Huaqin modify for psensor threshold by chenyijun5 at 2018/02/03 start */
 		stk,ps-thdh = <120>;
 		stk,ps-thdl = <90>;

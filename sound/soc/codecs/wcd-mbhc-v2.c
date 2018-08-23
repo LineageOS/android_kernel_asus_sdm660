@@ -67,6 +67,10 @@ enum wcd_mbhc_cs_mb_en_flag {
 	WCD_MBHC_EN_NONE,
 };
 
+/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 start */
+static int hph_state = 0;
+/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 end */
+
 /* Huaqin add for solve headphone can not recognize by xudayi at 2018/02/12 start */
 static bool wcd_swch_level_remove(struct wcd_mbhc *mbhc);
 /* Huaqin add for solve headphone can not recognize by xudayi at 2018/02/12 end */
@@ -77,6 +81,12 @@ static void wcd_mbhc_jack_report(struct wcd_mbhc *mbhc,
 	/* Huaqin add for check headset event by xudayi at 2018/03/10 start */
 	pr_err("%s:%x,%x",__func__,status,mask);
 	/* Huaqin add for check headset event by xudayi at 2018/03/10 end */
+	/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 start */
+	if((status == 0x9 && mask == 0x3cf) || (status == 0xb && mask == 0x3cf))
+		hph_state = 1;
+	else
+		hph_state = 0;
+	/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 end */
 	snd_soc_jack_report(jack, status, mask);
 }
 
@@ -2874,6 +2884,18 @@ void wcd_mbhc_stop(struct wcd_mbhc *mbhc)
 }
 EXPORT_SYMBOL(wcd_mbhc_stop);
 
+/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 start */
+static ssize_t show_hp_state(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	ret = snprintf(buf, sizeof(int), "%d\n",hph_state);
+	return ret;
+}
+
+static DEVICE_ATTR(hp_state, S_IRUGO, show_hp_state,NULL);
+/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 end */
+
 /*
  * wcd_mbhc_init : initialize MBHC internal structures.
  *
@@ -2886,6 +2908,9 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 		      bool impedance_det_en)
 {
 	int ret = 0;
+	/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 start */
+	int ret_hp =0;
+	/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 end */
 	int hph_swh = 0;
 	int gnd_swh = 0;
 	u32 hph_moist_config[3];
@@ -3088,6 +3113,10 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 		       mbhc->intr_ids->hph_right_ocp);
 		goto err_hphr_ocp_irq;
 	}
+
+	/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 start */
+	ret_hp = sysfs_create_file(&card->dev->kobj,&dev_attr_hp_state.attr);
+	/* Huaqin add for ZQL1650-1562 by xudayi at 2018/06/20 end */
 
 	pr_debug("%s: leave ret %d\n", __func__, ret);
 	return ret;

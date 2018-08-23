@@ -33,6 +33,17 @@
 #include "hub.h"
 #include "otg_whitelist.h"
 
+/* Huaqin add by liunianliang for temp, 20180427 start */
+#ifdef HQ_BUILD_FACTORY
+#undef dev_dbg
+#undef pr_debug
+#undef dev_info
+#define dev_info dev_err
+#define dev_dbg dev_err
+#define pr_debug pr_info
+#endif
+/* Huaqin add by liunianliang for temp, 20180427 end */
+
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define HUB_QUIRK_CHECK_PORT_AUTOSUSPEND	0x01
 

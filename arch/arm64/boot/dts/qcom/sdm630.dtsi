@@ -859,8 +859,10 @@
 		reg = <0x17817000 0x1000>;
 		reg-names = "wdt-base";
 		interrupts = <0 3 0>, <0 4 0>;
-		qcom,bark-time = <11000>;
-		qcom,pet-time = <10000>;
+                /* Huaqin modify for ZQL1650-950 by xieguoqiang at 2018/4/8 start*/
+		qcom,bark-time = <25000>;
+		qcom,pet-time = <15000>;
+                /* Huaqin modify for ZQL1650-950 by xieguoqiang at 2018/4/8 end*/
 		qcom,ipi-ping;
 		qcom,wakeup-enable;
 		qcom,scandump-size = <0x40000>;

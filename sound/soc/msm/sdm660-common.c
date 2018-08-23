@@ -31,7 +31,9 @@
 #define DEFAULT_MCLK_RATE 9600000
 
 /* Huaqin add sar switcher by chenyijun5 at 2018/03/20 start*/
+#ifdef CONFIG_INPUT_SX9310
 extern void sar_switch(bool);
+#endif
 /* Huaqin add sar switcher by chenyijun5 at 2018/03/20 end*/
 
 struct dev_config {
@@ -2531,8 +2533,10 @@ int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		/* Huaqin add for config i2s tert dai for nxp pa by xudayi at 2018/03/03 start */
 		if (index == TERT_MI2S) {
 			/* Huaqin add sar switcher by chenyijun5 at 2018/03/20 start*/
+			#ifdef CONFIG_INPUT_SX9310
 			pr_debug("%s before open PA, close SAR!\n", __func__);
 			sar_switch(0);
+			#endif
 			/* Huaqin add sar switcher by chenyijun5 at 2018/03/20 end*/
 		    msm_cdc_pinctrl_select_active_state(pdata->tert_mi2s_gpio_p);
 			printk("daixianze %s tert_mi2s_gpio_p\n", __func__);
@@ -2586,8 +2590,10 @@ void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 		    msm_cdc_pinctrl_select_sleep_state(pdata->tert_mi2s_gpio_p);
 			pr_err("daixianze %s tert_mi2s_gpio_p \n", __func__);
 			/* Huaqin add sar switcher by chenyijun5 at 2018/03/20 start*/
+			#ifdef CONFIG_INPUT_SX9310
 			pr_debug("%s after close PA, open SAR!\n", __func__);
 			sar_switch(1);
+			#endif
 			/* Huaqin add sar switcher by chenyijun5 at 2018/03/20 end*/
 		}
 		/* Huaqin add for config i2s tert dai for nxp pa by xudayi at 2018/03/03 end */

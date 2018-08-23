@@ -176,7 +176,8 @@
 			#pwm-cells = <2>;
 			qcom,period = <6000000>;
 
-			qcom,lpg {
+			/* Huaqin delete for TT1178692 enable off charging led by guojianghong at 2018/04/17 start */
+			/*qcom,lpg {
 				label = "lpg";
 				cell-index = <0>;
 				qcom,duty-percents =
@@ -184,7 +185,8 @@
 					0x46 0x50 0x5a 0x64
 					0x64 0x5a 0x50 0x46 0x3c 0x32 0x28 0x1e
 					0x14 0x0a 0x01>;
-			};
+			};*/
+			/* Huaqin delete for TT1178692 enable off charging led by guojianghong at 2018/04/17 end */
 		};
 
 		pm660l_pwm_4: pwm@b400 {
@@ -216,12 +218,13 @@
 				qcom,default-state = "off";
 				linux,name = "red";
 				qcom,start-idx = <0>;
-/* Huaqin modify for blink behavior by guojianghong at 2018/03/23 start */
-				qcom,idx-len = <8>;
-				qcom,duty-pcts =
-					[00 00 00 00
-					22 00 00 00];
-/* Huaqin modify for blink behavior by guojianghong at 2018/03/23 end */
+/* Huaqin modify for blink behavior by guojianghong at 2018/04/8 start */
+				qcom,idx-len = <2>;
+				qcom,lut-flags = <19>;
+				qcom,pause-lo = <3400>;
+				qcom,ramp-step-ms = <300>;
+				qcom,duty-pcts = [00 22];
+/* Huaqin modify for blink behavior by guojianghong at 2018/04/8 end */
 				qcom,use-blink;
 			};
 
@@ -234,16 +237,15 @@
 				qcom,max-current = <12>;
 				qcom,default-state = "off";
 				linux,name = "green";
-/* Huaqin modify for fixing green led by guojianghong at 2018/02/12 start */
+/* Huaqin modify for blink behavior by guojianghong at 2018/04/8 start */
 				qcom,start-idx = <0>;
-/* Huaqin modify for blink behavior by guojianghong at 2018/03/23 start */
-				qcom,idx-len = <8>;
-				qcom,duty-pcts =
-					[00 00 00 00
-					22 00 00 00];
-/* Huaqin modify for blink behavior by guojianghong at 2018/03/23 end */
+				qcom,idx-len = <2>;
+				qcom,lut-flags = <19>;
+				qcom,pause-lo = <1400>;
+				qcom,ramp-step-ms = <300>;
+				qcom,duty-pcts = [00 40];
 				qcom,use-blink;
-/* Huaqin modify for fixing green led by guojianghong at 2018/02/12 end */
+/* Huaqin modify for blink behavior by guojianghong at 2018/04/8 end */
 			};
 
 			blue_led: qcom,rgb_2 {
