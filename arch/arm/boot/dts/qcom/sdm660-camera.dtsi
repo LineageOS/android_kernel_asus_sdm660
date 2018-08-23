@@ -823,7 +823,9 @@
 	qcom,hw-thd-dat = <22>;
 	qcom,hw-thd-sta = <162>;
 	qcom,hw-tbuf = <227>;
-	qcom,hw-scl-stretch-en = <0>;
+	/* Huaqin modify for fixing cci timeout by lizihao at 2018/04/03 start*/
+	qcom,hw-scl-stretch-en = <1>;
+	/* Huaqin modify for fixing cci timeout by lizihao at 2018/04/03 end*/
 	qcom,hw-trdhld = <6>;
 	qcom,hw-tsp = <3>;
 	qcom,cci-clk-src = <37500000>;

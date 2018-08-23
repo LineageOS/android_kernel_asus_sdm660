@@ -54,6 +54,17 @@
 #include "debug.h"
 #include "xhci.h"
 
+/* Huaqin add by liunianliang for temp, 20180427 start */
+#ifdef HQ_BUILD_FACTORY
+#undef dev_dbg
+#undef pr_debug
+#undef dev_info
+#define dev_info dev_err
+#define dev_dbg dev_err
+#define pr_debug pr_info
+#endif
+/* Huaqin add by liunianliang for temp, 20180427 end */
+
 #define SDP_CONNETION_CHECK_TIME 10000 /* in ms */
 
 /* time out to wait for USB cable status notification (in ms)*/

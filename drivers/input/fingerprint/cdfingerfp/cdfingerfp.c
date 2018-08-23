@@ -40,7 +40,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/fb.h>
 #include <linux/notifier.h>
-
+/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 start */
+#include <linux/sched.h>
+/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 end */
 #include "../common/fingerprint_common.h"
 
 typedef struct key_report {
@@ -80,14 +82,15 @@ struct cdfinger_key_map {
 #define CDFINGER_WAKE_LOCK	 _IOW(CDFINGER_IOCTL_MAGIC_NO,26,uint8_t)
 
 /*if want change key value for event , do it*/
-#define CF_NAV_INPUT_UP						600
-#define CF_NAV_INPUT_DOWN					601
-#define CF_NAV_INPUT_LEFT					602
-#define CF_NAV_INPUT_RIGHT					603
-#define CF_NAV_INPUT_CLICK					604
-#define CF_NAV_INPUT_DOUBLE_CLICK			KEY_VOLUMEUP
-#define CF_NAV_INPUT_LONG_PRESS				605
-
+/* Huaqin add define for fingerprint nav-keycode by leiyu at 2018/04/12 start */
+#define CF_NAV_INPUT_UP						FP_KEY_UP
+#define CF_NAV_INPUT_DOWN					FP_KEY_DOWN
+#define CF_NAV_INPUT_LEFT					FP_KEY_LEFT
+#define CF_NAV_INPUT_RIGHT					FP_KEY_RIGHT
+#define CF_NAV_INPUT_CLICK					FP_KEY_CLICK
+#define CF_NAV_INPUT_DOUBLE_CLICK			FP_KEY_DOUBLE_CLICK
+#define CF_NAV_INPUT_LONG_PRESS				FP_KEY_LONG_PRESS
+/* Huaqin add define for fingerprint nav-keycode by leiyu at 2018/04/12 start */
 #define CF_KEY_INPUT_HOME					KEY_HOME
 #define CF_KEY_INPUT_MENU					KEY_MENU
 #define CF_KEY_INPUT_BACK					KEY_BACK
@@ -327,6 +330,12 @@ static void cdfinger_async_report(void)
 
 static irqreturn_t cdfinger_eint_handler(int irq, void *dev_id)
 {
+/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 start */
+	if(screen_status == 0)
+	{
+		sched_set_boost(1);
+	}
+/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 end */
 	cdfinger_async_report();
 	return IRQ_HANDLED;
 }
@@ -362,9 +371,19 @@ static int cdfinger_eint_gpio_init(struct cdfingerfp_data *pdata)
 		enable_irq_wake(gpio_to_irq(pdata->irq_num));
 		return error;
 */
-/* Huaqin modify for ZQL1650-143 by wangxiang at 2018/02/09 start */
-	return commonfp_request_irq(cdfinger_eint_handler,NULL, IRQF_TRIGGER_RISING,"cdfinger_eint", (void*)pdata);
-/* Huaqin modify for ZQL1650-143 by wangxiang at 2018/02/09 end */
+/* Huaqin modify for cdfinger irq wake by leiyu at 2018/04/10 start */
+	int error = 0;
+/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 start */
+	error = commonfp_request_irq(NULL,cdfinger_eint_handler, IRQF_TRIGGER_RISING|IRQF_ONESHOT,"cdfinger_eint", (void*)pdata);
+/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 end */
+	if (error < 0)
+	{
+		CDFINGER_ERR("commonfp_request_irq error %d\n", error);
+		return error;
+	}
+	commonfp_irq_enable();
+	return error;
+/* Huaqin modify for cdfinger irq wake by leiyu at 2018/04/10 end */
 }
 
 static void cdfinger_wake_lock(struct cdfingerfp_data *pdata,int arg)
@@ -505,6 +524,9 @@ static int cdfinger_fb_notifier_callback(struct notifier_block* self,
 		if (isInKeyMode == 0)
 			cdfinger_async_report();
 		mutex_unlock(&g_cdfingerfp_data->buf_lock);
+/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 start */
+		sched_set_boost(0);
+/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 end */
 		printk("sunlin==FB_BLANK_UNBLANK==\n");
             break;
         case FB_BLANK_POWERDOWN:

@@ -500,6 +500,9 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 	do {
 		irqnr = gic_read_iar();
 
+		/* Huaqin add for ZQL1650-1473 by liunianliang at 2018/05/30 start */
+		uncached_logk(LOGK_IRQ, (void *)(uintptr_t)irqnr);
+		/* Huaqin add for ZQL1650-1473 by liunianliang at 2018/05/30 end */
 		if (likely(irqnr > 15 && irqnr < 1020) || irqnr >= 8192) {
 			int err;
 			uncached_logk(LOGK_IRQ, (void *)(uintptr_t)irqnr);

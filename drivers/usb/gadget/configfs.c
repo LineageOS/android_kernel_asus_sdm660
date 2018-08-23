@@ -10,6 +10,17 @@
 #include "u_os_desc.h"
 #include "debug.h"
 
+/* Huaqin add by liunianliang for temp, 20180427 start */
+#ifdef HQ_BUILD_FACTORY
+#undef dev_dbg
+#undef pr_debug
+#undef dev_info
+#define dev_info dev_err
+#define dev_dbg dev_err
+#define pr_debug pr_info
+#endif
+/* Huaqin add by liunianliang for temp, 20180427 end */
+
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
 #include <linux/platform_device.h>
 #include <linux/kdev_t.h>
@@ -443,6 +454,11 @@ static int config_usb_cfg_link(
 		goto out;
 	}
 
+/* Huaqin add by liunianliang for temp, 20180427 start */
+#ifdef HQ_BUILD_FACTORY
+	pr_info("[oem] %s: func:%s\n", __func__, f->name);
+#endif
+/* Huaqin add by liunianliang for temp, 20180427 end */
 	/* stash the function until we bind it to the gadget */
 	list_add_tail(&f->list, &cfg->func_list);
 	ret = 0;

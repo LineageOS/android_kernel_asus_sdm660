@@ -27,6 +27,17 @@
 #define SSUSB_GADGET_VBUS_DRAW_UNITS 8
 #define HSUSB_GADGET_VBUS_DRAW_UNITS 2
 
+/* Huaqin add by liunianliang for temp, 20180427 start */
+#ifdef HQ_BUILD_FACTORY
+#undef INFO
+#undef DBG
+#undef pr_debug
+#define INFO ERROR
+#define DBG ERROR
+#define pr_debug pr_err
+#endif
+/* Huaqin add by liunianliang for temp, 20180427 end */
+
 /*
  * Based on enumerated USB speed, draw power with set_config and resume
  * HSUSB: 500mA, SSUSB: 900mA

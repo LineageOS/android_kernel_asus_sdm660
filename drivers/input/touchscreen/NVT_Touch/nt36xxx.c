@@ -40,6 +40,9 @@
 #include <linux/wakelock.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
+//Huaqin add for Reduce the bright screen time by qimaokang at 2018/4/20 start
+#include <linux/kthread.h>
+//Huaqin add for Reduce the bright screen time by qimaokang at 2018/4/20 end
 
 #if defined(CONFIG_FB)
 #include <linux/notifier.h>
@@ -217,6 +220,25 @@ static void nvt_ts_early_suspend(struct early_suspend *h);
 static void nvt_ts_late_resume(struct early_suspend *h);
 #endif
 
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+static atomic_t nvt_irq_status = ATOMIC_INIT(1);
+void nvt_irq_enable(void)
+{
+	if (!atomic_cmpxchg(&nvt_irq_status,0,1)) {
+		enable_irq(ts->client->irq);
+	}
+}
+
+void nvt_irq_disable(void)
+{
+	if (atomic_cmpxchg(&nvt_irq_status,1,0)) {
+		disable_irq(ts->client->irq);
+	}
+}
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
+// Huaqin add for ZQL1650-1072. by zhengwu.lu. at 2018/04/23  start
+extern int tp_status_fun(void);
+// Huaqin add for ZQL1650-1072. by zhengwu.lu. at 2018/04/23  end
 static const struct nvt_ts_mem_map NT36772_memory_map = {
 	.EVENT_BUF_ADDR           = 0x11E00,
 	.RAW_PIPE0_ADDR           = 0x10000,
@@ -364,12 +386,14 @@ const uint16_t touch_key_array[TOUCH_KEY_NUM] = {
 
 #if WAKEUP_GESTURE
 /* Huaqin modify by yuexinghan for gesture mode 20171030 start */
-#define GESTURE_EVENT_C 46
-#define GESTURE_EVENT_E 18
-#define GESTURE_EVENT_S 31
-#define GESTURE_EVENT_V 47
-#define GESTURE_EVENT_W 17
-#define GESTURE_EVENT_Z 44
+/* Huaqin modify  for TT1176710 by liunianliang at 2018/03/30 start */
+#define GESTURE_EVENT_C 		KEY_TP_GESTURE_C
+#define GESTURE_EVENT_E 		KEY_TP_GESTURE_E
+#define GESTURE_EVENT_S 		KEY_TP_GESTURE_S
+#define GESTURE_EVENT_V 		KEY_TP_GESTURE_V
+#define GESTURE_EVENT_W 		KEY_TP_GESTURE_W
+#define GESTURE_EVENT_Z 		KEY_TP_GESTURE_Z
+/* Huaqin modify  for TT1176710 by liunianliang at 2018/03/30 end */
 /* Huaqin modify gesture keycode by yuexinghan 20171109 start */
 #define GESTURE_EVENT_SWIPE_UP 0x2f6
 #define GESTURE_EVENT_DOUBLE_CLICK 0x2f7
@@ -780,7 +804,7 @@ info_retry:
 		ts->x_num = 18;
 		ts->y_num = 32;
 		ts->abs_x_max = 1080;
-		ts->abs_y_max = 1920;
+		ts->abs_y_max = 2160;
 		ts->max_button_num = 0;
 
 		if(retry_count < 3) {
@@ -1261,9 +1285,7 @@ static void nvt_ts_work_func(struct work_struct *work)
 #endif /* MT_PROTOCOL_B */
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
-
 	mutex_lock(&ts->lock);
-
 	ret = CTP_I2C_READ(ts->client, I2C_FW_Address, point_data, POINT_DATA_LEN + 1);
 	if (ret < 0) {
 		NVT_ERR("CTP_I2C_READ failed.(%d)\n", ret);
@@ -1285,12 +1307,20 @@ static void nvt_ts_work_func(struct work_struct *work)
 		}
 #endif
 // Huaqin add for esd check function. by zhengwu.lu. at 2018/2/28  end
-
+// Huaqin add for ZQL1650-1072. by zhengwu.lu. at 2018/04/23  start
+	ret = tp_status_fun();
+	if (ret) {
+		goto XFER_ERROR;
+	}
+// Huaqin add for ZQL1650-1072. by zhengwu.lu. at 2018/04/23  end
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
 		input_id = (uint8_t)(point_data[1] >> 3);
 		nvt_ts_wakeup_gesture_report(input_id);
-		enable_irq(ts->client->irq);
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+		//enable_irq(ts->client->irq);
+		nvt_irq_enable();
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
 		mutex_unlock(&ts->lock);
 		return;
 	}
@@ -1355,7 +1385,9 @@ static void nvt_ts_work_func(struct work_struct *work)
 
 #if MT_PROTOCOL_B
 	for (i = 0; i < ts->max_touch_num; i++) {
-		if (press_id[i] != 1) {
+// Huaqin add for  ACTION_HOVER_ENTER 1176453. by zhengwu.lu. at 2018/04/10 For Platform start
+		if ((press_id[i] != 1) || (finger_cnt <= 0)) {
+// Huaqin add for  ACTION_HOVER_ENTER 1176453. by zhengwu.lu. at 2018/04/10 For Platform end
 			input_mt_slot(ts->input_dev, i);
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
 			input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
@@ -1386,7 +1418,10 @@ static void nvt_ts_work_func(struct work_struct *work)
 	input_sync(ts->input_dev);
 
 XFER_ERROR:
-	enable_irq(ts->client->irq);
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+	//enable_irq(ts->client->irq);
+	nvt_irq_enable();
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
 
 	mutex_unlock(&ts->lock);
 }
@@ -1400,7 +1435,12 @@ return:
 *******************************************************/
 static irqreturn_t nvt_ts_irq_handler(int32_t irq, void *dev_id)
 {
+	//disable_irq_nosync(ts->client->irq);
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+	if (atomic_cmpxchg(&nvt_irq_status,1,0)) {
 	disable_irq_nosync(ts->client->irq);
+	}
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
@@ -1518,13 +1558,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	//---parse dts---
 	nvt_parse_dt(&client->dev);
 
-	//---request and config GPIOs---
-	ret = nvt_gpio_config(ts);
-	if (ret) {
-		NVT_ERR("gpio config error!\n");
-		goto err_gpio_config_failed;
-	}
-
 // Huaqin add for vsp/vsn. by zhengwu.lu. at 2018/03/07  start
 #if NVT_POWER_SOURCE_CUST_EN
 	atomic_set(&(ts->lcm_lab_power), 0);
@@ -1557,6 +1590,15 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 		ret = -EINVAL;
 		goto err_chipvertrim_failed;
 	}
+
+ /* Huaqin modify for ZQL1650-1357 by diganyun at 2018/05/22  start */	
+	//---request and config GPIOs---
+	ret = nvt_gpio_config(ts);
+	if (ret) {
+		NVT_ERR("gpio config error!\n");
+		goto err_gpio_config_failed;
+	}
+ /* Huaqin modify for ZQL1650-1357 by diganyun at 2018/05/22  end */
 
 	mutex_init(&ts->lock);
 
@@ -1655,7 +1697,10 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 			NVT_ERR("request irq failed. ret=%d\n", ret);
 			goto err_int_request_failed;
 		} else {
-			disable_irq(client->irq);
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+			//disable_irq(client->irq);
+			nvt_irq_disable();
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
 			NVT_LOG("request irq %d succeed\n", client->irq);
 		}
 	}
@@ -1743,8 +1788,10 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 
 	bTouchIsAwake = 1;
 	NVT_LOG("end\n");
-
-	enable_irq(client->irq);
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+	//enable_irq(client->irq);
+	nvt_irq_enable();
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
 
 	return 0;
 
@@ -1861,7 +1908,10 @@ static int32_t nvt_ts_suspend(struct device *dev)
 #if WAKEUP_GESTURE
 	/* Huaqin add by yuexinghan for gesture mode 20171030 start */
 	if (((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)) {
-		disable_irq(ts->client->irq);
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+		//disable_irq(ts->client->irq);
+		nvt_irq_disable();
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
 
 		//---write i2c command to enter "deep sleep mode"---
 		buf[0] = EVENT_MAP_HOST_CMD;
@@ -1881,7 +1931,10 @@ static int32_t nvt_ts_suspend(struct device *dev)
 	}
 	/* Huaqin add by yuexinghan for gesture mode 20171030 end */
 #else // WAKEUP_GESTURE
-	disable_irq(ts->client->irq);
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+	//disable_irq(ts->client->irq);
+	nvt_irq_disable();
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
 
 	//---write i2c command to enter "deep sleep mode"---
 	buf[0] = EVENT_MAP_HOST_CMD;
@@ -1893,6 +1946,10 @@ static int32_t nvt_ts_suspend(struct device *dev)
 #if MT_PROTOCOL_B
 	for (i = 0; i < ts->max_touch_num; i++) {
 		input_mt_slot(ts->input_dev, i);
+// Huaqin add for  ACTION_HOVER_ENTER 1176453. by zhengwu.lu. at 2018/04/10 For Platform start
+		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+		input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
+// Huaqin add for  ACTION_HOVER_ENTER 1176453. by zhengwu.lu. at 2018/04/10 For Platform end
 		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, 0);
 	}
 #endif
@@ -1946,19 +2003,10 @@ static int32_t nvt_ts_resume(struct device *dev)
 	nvt_bootloader_reset();
 	nvt_check_fw_reset_state(RESET_STATE_REK);
 
-/* Huaqin add by yuexinghan for gesture mode 20171030 start */
-#if WAKEUP_GESTURE
-	if(((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)){
-		enable_irq(ts->client->irq);
-		NVT_LOG("Leave sleep mode\n");
-	}
-	else {
-		NVT_LOG("Leave gesture mode\n");
-	}
-#else
-	enable_irq(ts->client->irq);
-#endif
-/* Huaqin add by yuexinghan for gesture mode 20171030 end */
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform start
+	nvt_irq_enable();
+// Huaqin add for ctp lose efficacy by zhengwu.lu. at 2018/04/18 For Platform end
+
 // Huaqin add for esd check function. by zhengwu.lu. at 2018/2/28  start
 #if NVT_TOUCH_ESD_PROTECT
 		queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
@@ -1974,8 +2022,14 @@ static int32_t nvt_ts_resume(struct device *dev)
 
 	return 0;
 }
+//Huaqin add for Reduce the bright screen time by qimaokang at 2018/4/20 start
+int fb_nvt_ts_resume(void *data)
+{
+	nvt_ts_resume(data);
 
-
+	return 0;
+}
+//Huaqin add for Reduce the bright screen time by qimaokang at 2018/4/20 end
 #if defined(CONFIG_FB)
 static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
@@ -1992,7 +2046,9 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 	} else if (evdata && evdata->data && event == FB_EVENT_BLANK) {
 		blank = evdata->data;
 		if (*blank == FB_BLANK_UNBLANK) {
-			nvt_ts_resume(&ts->client->dev);
+//Huaqin add for Reduce the bright screen time by qimaokang at 2018/4/20 start
+			kthread_run(fb_nvt_ts_resume,&ts->client->dev,"tp_resume");
+//Huaqin add for Reduce the bright screen time by qimaokang at 2018/4/20 end
 		}
 	}
 

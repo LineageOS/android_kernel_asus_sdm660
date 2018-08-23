@@ -53,7 +53,9 @@
 #define STK_ALS_CHANGE_THD		2	/* The threshold to trigger ALS interrupt, unit: lux */
 /* Huaqin modify for lsensor gain by chenyijun5 at 2018/02/27 end */
 #define STK_INT_PS_MODE			1	/* 1, 2, or 3	*/
-#define STK_POLL_PS
+/*Huaqin delete for ps INT mode by chenyijun5 at 2018/03/29 start*/
+//#define STK_POLL_PS
+/*Huaqin delete for ps INT mode by chenyijun5 at 2018/03/29 end*/
 #define STK_POLL_ALS		/* ALS interrupt is valid only when STK_INT_PS_MODE = 1	or 4*/
 #define STK_TUNE0
 //#define STK_TUNE1
@@ -221,6 +223,13 @@
 #define STK_H_LT		100
 #endif
 /*Huaqin modify for psensor near/far threshold by chenyijun5 at 2018/02/27 end*/
+
+/* Huaqin add for ZQL1650-1072 by zhuqiang at 2018/04/23 start*/
+bool ps_status_flag = 0;
+bool call_status_flag = 0;
+module_param(call_status_flag, bool, 0660);
+MODULE_PARM_DESC(call_status_flag, "Judgment call status");
+/* Huaqin add for ZQL1650-1072 by zhuqiang at 2018/04/23 end*/
 
 #ifdef STK_TUNE1
 	#define STK_FIN_THD				(2000)
@@ -1272,6 +1281,10 @@ static int32_t stk3x1x_enable_ps(struct stk3x1x_data *ps_data, uint8_t enable, u
 	uint32_t reading;
 	int32_t near_far_state;
 
+/* Huaqin add for ZQL1650-1072 by zhuqiang at 2018/04/23 start*/
+	if(!enable)
+		ps_status_flag = 0;
+/* Huaqin add for ZQL1650-1072 by zhuqiang at 2018/04/23 end*/
 #ifdef STK_QUALCOMM_POWER_CTRL
 	if (enable) {
 		ret = stk3x1x_device_ctl(ps_data, enable);
@@ -3623,9 +3636,6 @@ static void stk_ps_poll_work_func(struct work_struct *work)
 	int32_t near_far_state;
 	uint8_t org_flag_reg;
 /*Huaqin modify for psensor near/far threshold by chenyijun5 at 2018/02/11 start*/
-#ifdef CTTRACKING
-	int err;
-#endif
 
 	if(ps_data->ps_enabled)
 	{
@@ -3646,50 +3656,6 @@ static void stk_ps_poll_work_func(struct work_struct *work)
 		near_far_state = (org_flag_reg & STK_FLG_NF_MASK)?1:0;
 		reading = stk3x1x_get_ps_reading(ps_data);
 		ps_data->ps_code_last = reading;
-
-#ifdef CTTRACKING
-/*Huaqin modify for psensor near/far threshold by chenyijun5 at 2018/02/27 start*/
-		if(near_far_state == 0){
-			if((reading > (ps_data->psi + STK_H_PS))&&ps_data->skin_near) {
-				ps_data->ps_thd_h = ps_data->psi + STK_H_HT;
-				ps_data->ps_thd_l = ps_data->psi + STK_H_LT;
-				if((err = stk3x1x_set_ps_thd_h(ps_data, ps_data->ps_thd_h)))
-				{
-					printk(KERN_ERR"write high thd error: %d\n", err);
-				}
-				if((err = stk3x1x_set_ps_thd_l(ps_data, ps_data->ps_thd_l)))
-				{
-					printk(KERN_ERR "write high thd error: %d\n", err);
-				}
-				ps_data->ps_thd_update = true;
-				ps_data->skin_near = false;
-				printk(KERN_INFO "%s:ps update ps = 0x%x, psi = 0x%x\n",__FUNCTION__, reading, ps_data->psi);
-				printk(KERN_INFO "%s: update HT=%d, LT=%d\n", __func__, ps_data->ps_thd_h, ps_data->ps_thd_l);
-			}
-		}else{
-			ps_data->skin_near = true;
-/*Huaqin modify for psensor near/far threshold by chenyijun5 at 2018/02/27 end*/
-			if(ps_data->ps_thd_update) {
-				err = stk_ps_val(ps_data);
-				if(err == 0){
-					ps_data->ps_thd_h = reading + ps_data->stk_ht_n_ct;
-					ps_data->ps_thd_l = reading + ps_data->stk_lt_n_ct;
-
-					if((err = stk3x1x_set_ps_thd_h(ps_data, ps_data->ps_thd_h)))
-					{
-						printk(KERN_ERR "write high thd error: %d\n", err);
-					}
-					if((err = stk3x1x_set_ps_thd_l(ps_data, ps_data->ps_thd_l)))
-					{
-						printk(KERN_ERR "write low thd error: %d\n", err);
-					}
-					printk(KERN_INFO "%s: Set HT=%d, LT=%d\n", __func__, ps_data->ps_thd_h, ps_data->ps_thd_l);
-				}
-				ps_data->ps_thd_update = false;
-			}
-		}
-#endif
-
 		if(ps_data->ps_distance_last != near_far_state)
 		{
 			stk_ps_report(ps_data, near_far_state);
@@ -3814,11 +3780,22 @@ static void stk_ps_int_handle_int_mode_2_3(struct stk3x1x_data *ps_data)
 }
 #endif
 
+/* Huaqin add for ZQL1650-1072 by zhuqiang at 2018/04/23 start*/
+int tp_status_fun(void)
+{
+	return (call_status_flag & ps_status_flag);
+}
+EXPORT_SYMBOL(tp_status_fun);
 static void stk_ps_int_handle(struct stk3x1x_data *ps_data, uint32_t ps_reading, int32_t nf_state)
 {
+	if(!nf_state)
+		ps_status_flag = 1;
+	else
+		ps_status_flag = 0;
 	stk_ps_report(ps_data, nf_state);
 	printk(KERN_INFO "%s: ps input event=%d, ps code=%d\n",__func__, nf_state, ps_reading);
 }
+/* Huaqin add ZQL1650-1072 by zhuqiang at 2018/04/23 end*/
 
 #endif	// #ifdef STK_TUNE1
 
@@ -3873,7 +3850,11 @@ static void stk_work_func(struct work_struct *work)
 #endif	/* #if ((STK_INT_PS_MODE != 0x03) && (STK_INT_PS_MODE != 0x02)) */
 	struct stk3x1x_data *ps_data = container_of(work, struct stk3x1x_data, stk_work);
 	uint32_t reading;
-
+/*Huaqin add for ps INT mode by chenyijun5 at 2018/03/29 start*/
+#ifdef CTTRACKING
+	int err;
+#endif
+/*Huaqin add for ps INT mode by chenyijun5 at 2018/03/29 end*/
 #if ((STK_INT_PS_MODE == 0x03) || (STK_INT_PS_MODE == 0x02))
 	stk_ps_int_handle_int_mode_2_3(ps_data);
 #else
@@ -3908,6 +3889,50 @@ static void stk_work_func(struct work_struct *work)
 			goto err_i2c_rw;
 #else
 		near_far_state = (org_flag_reg & STK_FLG_NF_MASK)?1:0;
+
+/*Huaqin add for ps INT mode by chenyijun5 at 2018/03/29 start*/
+#ifdef CTTRACKING
+		if(near_far_state == 0){
+			if((reading > (ps_data->psi + STK_H_PS))&&ps_data->skin_near) {
+				ps_data->ps_thd_h = ps_data->psi + STK_H_HT;
+				ps_data->ps_thd_l = ps_data->psi + STK_H_LT;
+				if((err = stk3x1x_set_ps_thd_h(ps_data, ps_data->ps_thd_h)))
+				{
+					printk(KERN_ERR"write high thd error: %d\n", err);
+				}
+				if((err = stk3x1x_set_ps_thd_l(ps_data, ps_data->ps_thd_l)))
+				{
+					printk(KERN_ERR "write high thd error: %d\n", err);
+				}
+				ps_data->ps_thd_update = true;
+				ps_data->skin_near = false;
+				printk(KERN_INFO "%s:ps update ps = 0x%x, psi = 0x%x\n",__FUNCTION__, reading, ps_data->psi);
+				printk(KERN_INFO "%s: update HT=%d, LT=%d\n", __func__, ps_data->ps_thd_h, ps_data->ps_thd_l);
+			}
+		}else{
+			ps_data->skin_near = true;
+			if(ps_data->ps_thd_update) {
+				err = stk_ps_val(ps_data);
+				if(err == 0){
+					ps_data->ps_thd_h = reading + ps_data->stk_ht_n_ct;
+					ps_data->ps_thd_l = reading + ps_data->stk_lt_n_ct;
+
+					if((err = stk3x1x_set_ps_thd_h(ps_data, ps_data->ps_thd_h)))
+					{
+						printk(KERN_ERR "write high thd error: %d\n", err);
+					}
+					if((err = stk3x1x_set_ps_thd_l(ps_data, ps_data->ps_thd_l)))
+					{
+						printk(KERN_ERR "write low thd error: %d\n", err);
+					}
+					printk(KERN_INFO "%s: Set HT=%d, LT=%d\n", __func__, ps_data->ps_thd_h, ps_data->ps_thd_l);
+				}
+				ps_data->ps_thd_update = false;
+			}
+		}
+#endif
+/*Huaqin add for ps INT mode by chenyijun5 at 2018/03/29 end*/
+
 		stk_ps_int_handle(ps_data, reading, near_far_state);
 #endif
 	}

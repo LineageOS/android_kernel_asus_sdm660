@@ -32,6 +32,9 @@
 /* Huaqin modify for lcm bring up by xieguoqiang at 2018/02/26 start */
 #include "dsi-panel-nt36672-1080p-video.dtsi"
 /* Huaqin modify for lcm bring up by xieguoqiang at 2018/02/26 end */
+/* Huaqin modify for ZQL1650-1356 by qimaokang at 2018/05/22 start */
+#include "dsi-panel-td4310-1080p-video-txd.dtsi"
+/* Huaqin modify for ZQL1650-1356 by qimaokang at 2018/05/22 end */
 &soc {
 	dsi_panel_pwr_supply: dsi_panel_pwr_supply {
 		#address-cells = <1>;

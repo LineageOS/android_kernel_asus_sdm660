@@ -1790,7 +1790,10 @@ static int fg_charge_full_update(struct fg_chip *chip)
 			fg_dbg(chip, FG_STATUS, "Terminated charging @ SOC%d\n",
 				msoc);
 		}
-	} else if (msoc_raw <= recharge_soc && chip->charge_full) {
+/* Huaqin modify for ZQL1650-750 optimize discharge capacity jump 1% by fangaijun at 2018/03/29 start*/
+	} else if ((msoc_raw <= recharge_soc || !chip->charge_done) && chip->charge_full) {
+		printk("enter fg_charge_full_update1\n");
+/* Huaqin modify for ZQL1650-750 optimize discharge capacity jump 1% by fangaijun at 2018/03/29 end*/
 		if (chip->dt.linearize_soc) {
 			chip->delta_soc = FULL_CAPACITY - msoc;
 
@@ -1833,6 +1836,9 @@ static int fg_charge_full_update(struct fg_chip *chip)
 			goto out;
 
 		chip->charge_full = false;
+/* Huaqin modify for ZQL1650-750 optimize discharge capacity jump 1% by fangaijun at 2018/03/29 start*/
+		printk("enter fg_charge_full_update2\n");
+/* Huaqin modify for ZQL1650-750 optimize discharge capacity jump 1% by fangaijun at 2018/03/29 end*/
 		fg_dbg(chip, FG_STATUS, "msoc_raw = %d bsoc: %d recharge_soc: %d delta_soc: %d\n",
 			msoc_raw, bsoc >> 8, recharge_soc, chip->delta_soc);
 		printk("enter fg_charge_full_update msoc_raw = %d bsoc: %d recharge_soc: %d\n",msoc_raw, bsoc >> 8, recharge_soc);
@@ -2485,13 +2491,7 @@ static void status_change_work(struct work_struct *work)
 	}
 
 	chip->charge_status = prop.intval;
-/* Huaqin modify for ZQL1650-750 optimize discharge capacity jump 1% by fangaijun at 2018/03/22 start*/
-	if(chip->charge_status !=4)
-	{
-		chip->charge_full = false;
-		printk("enter status_change_work charge_status=%d\n",chip->charge_status);
-	}
-/* Huaqin modify for ZQL1650-750 optimize discharge capacity jump 1% by fangaijun at 2018/03/22 end*/
+
 	rc = power_supply_get_property(chip->batt_psy,
 			POWER_SUPPLY_PROP_CHARGE_TYPE, &prop);
 	if (rc < 0) {
@@ -2508,6 +2508,7 @@ static void status_change_work(struct work_struct *work)
 	}
 
 	chip->charge_done = prop.intval;
+	printk("status_change_work chip->charge_done=%d\n",chip->charge_done);
 	fg_cycle_counter_update(chip);
 	fg_cap_learning_update(chip);
 

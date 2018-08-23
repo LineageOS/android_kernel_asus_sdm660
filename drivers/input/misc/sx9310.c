@@ -48,6 +48,14 @@ module_param(sar_switcher, bool, 0644);
 MODULE_PARM_DESC(sar_switcher, "Control sarsensor open or close.");
 /* Huaqin add sar switcher by chenyijun5 at 2018/03/20 end*/
 
+/* Huaqin add for check hw by zhuqiang at 2018/06/22 start */
+#define SX9310_ID_ERROR 	1
+#define SX9310_I2C_ERROR	2
+#define SX9310_WHOAMI_REG       0x42
+#define SX9310_WHOAMI_VALUE     0x1
+static bool err_flag = 0;
+/* Huaqin add for check hw by zhuqiang at 2018/06/22 end */
+
 /*! \struct sx9310
  * Specialized struct containing input event data, platform data, and
  * last cap state read if needed.
@@ -743,6 +751,10 @@ void sar_switch(bool switcher)
 	psx9310_t pDevice = NULL;
 	struct input_dev *input = NULL;
 	struct _buttonInfo *pCurrentButton = NULL;
+    /* Huaqin add for check hw by zhuqiang at 2018/06/22 start */
+	if(err_flag)
+		return;
+    /* Huaqin add for check hw by zhuqiang at 2018/06/22 end */
 
 	pDevice = psx93XX_this->pDevice;
 	pCurrentButton = pDevice->pbuttonInformation->buttons;
@@ -1188,6 +1200,29 @@ static ssize_t capsensor_config_write_proc(struct file *filp,
 	return count;
 }
 
+/* Huaqin add for check hw by zhuqiang at 2018/06/22 start */
+/* Failer Index */
+static int sx9310_Hardware_Check(psx93XX_t this)
+{
+	int ret;
+	u8 failcode;
+	u8 failStatusCode = 0;
+
+	//Check I2C Connection
+	ret = read_register(this, SX9310_WHOAMI_REG, &failcode);
+	if(ret < 0){
+		failStatusCode = SX9310_I2C_ERROR;
+	}
+
+	if(failcode!= SX9310_WHOAMI_VALUE){
+		failStatusCode = SX9310_ID_ERROR;
+	}
+
+	dev_info(this->pdev, "sx9310 failcode = 0x%x\n",failStatusCode);
+	return failStatusCode;
+}
+/* Huaqin add for check hw by zhuqiang at 2018/06/22 end */
+
 /*! \fn static int sx9310_probe(struct i2c_client *client, const struct i2c_device_id *id)
  * \brief Probe function
  * \param client pointer to i2c_client
@@ -1318,6 +1353,14 @@ static int sx9310_probe(struct i2c_client *client,
 		dev_dbg(&client->dev,
 			"\t Initialized Device Specific Memory: 0x%p\n",
 			pDevice);
+	
+		/* Huaqin add for check hw by zhuqiang at 2018/06/22 start */
+		if (sx9310_Hardware_Check(this) != 0)
+		{
+			goto error_1;
+		}
+		/* Huaqin add for check hw by zhuqiang at 2018/06/21 end */
+
 
 		if (pDevice) {
 			/* for accessing items in user data (e.g. calibrate) */
@@ -1433,6 +1476,9 @@ error_1:
 	kfree(this);
 error_0:
 	kfree(pplatData);
+	/* Huaqin add for check hw by zhuqiang at 2018/06/22 start */
+	err_flag = 1;
+	/* Huaqin add for check hw by zhuqiang at 2018/06/22 end */
 	return err;
 }
 

@@ -72,6 +72,12 @@ enum print_reason {
 #define BOOST_BACK_STORM_COUNT	3
 #define WEAK_CHG_STORM_COUNT	8
 
+/* Huaqin modify for ZQL1650-74 Countrycode Adapter by diganyun at 2018/03/26 start */
+#define COUNTRY_BR 1
+#define COUNTRY_IN 1
+#define COUNTRY_OTHER 2
+/* Huaqin modify for ZQL1650-74 Countrycode Adapter by diganyun at 2018/03/26 end */
+
 enum smb_mode {
 	PARALLEL_MASTER = 0,
 	PARALLEL_SLAVE,
@@ -313,6 +319,9 @@ struct smb_charger {
 //Huaqin added by tangqingyong at 20180206 for USB alert start
 	struct qpnp_vadc_chip			*gpio12_vadc_dev;
 //Huaqin added by tangqingyong at 20180206 for USB alert end
+/* Huaqin modify for ZQL1650-74 Countrycode Adapter by diganyun at 2018/03/26 start */
+	struct delayed_work read_countrycode_work;
+/* Huaqin modify for ZQL1650-74 Countrycode Adapter by diganyun at 2018/03/26 end */
 
 	/* cached status */
 	int			voltage_min_uv;
