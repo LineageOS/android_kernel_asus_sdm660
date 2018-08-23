@@ -1,0 +1,29 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
+&soc {
+	tert_mi2s_gpios: tert_mi2s_pinctrl {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&ter_mi2s_clk_active &ter_mi2s_ws_active
+			&ter_mi2s_sd0_active &ter_mi2s_sd1_active>;
+		pinctrl-1 = <&ter_mi2s_clk_sleep &ter_mi2s_ws_sleep
+			&ter_mi2s_sd0_sleep &ter_mi2s_sd1_sleep>;
+		qcom,lpi-gpios;
+	};
+};
+
+&cdc_sdw_gpios {
+	status = "disabled";
+};
+
+&pm660_gpios {
+	gpio@c200 {
+		qcom,mode = <3>; /* Analog Pass Through */
+		qcom,pull = <5>; /* Input No pull */
+		qcom,vin-sel = <0>; /* VIN0 */
+		qcom,src-sel = <0>; /* Constant */
+		qcom,master-en = <0>; /* Eanble GPIO */
+
+		/delete-property/ qcom,out-strength;
+	};
+};

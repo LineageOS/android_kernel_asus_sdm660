@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
+&qrd_batterydata {
+	/delete-node/ qcom,qrd_msm8998_skuk_3000mah;
+
+	#include "fg-gen3-batterydata-3292665_Huaqin_QL1650cos_5000mAh.dtsi"	
+};
+
+&pm660_fg {
+	qcom,fg-jeita-thresholds = <0 1 59 60>;
+};
+
+&sdhc_1 {
+	qcom,vdd-always-on;
+};
+
+&soc {
+	gpio_keys {
+		/delete-node/ home;
+	};
+};
+
+&qusb_phy0 {
+	qcom,qusb-phy-init-seq = <0xf8 0x80
+				0x83 0x84
+				0x83 0x88
+				0xc3 0x8c
+				0x81 0x88
+				0xc7 0x8c
+				0x30 0x08
+				0x79 0x0c
+				0x21 0x10
+				0x14 0x9c
+				0x9f 0x1c
+				0x00 0x18>;
+};
