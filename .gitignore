@@ -116,3 +116,6 @@ all.config
 
 # fetched Android config fragments
 android/configs/android-*.cfg
+
+# Huaqin, stop being retard by doing all kernel stuffs on Windows
+!.gitattributes
