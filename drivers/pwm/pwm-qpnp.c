@@ -1508,6 +1508,9 @@ int pwm_change_mode(struct pwm_device *pwm, enum pm_pwm_mode mode)
 			goto unlock;
 		}
 		chip->pwm_mode = mode;
+#ifdef CONFIG_MACH_ASUS_X00TD
+	}
+#endif
 		if (chip->enabled) {
 			rc = _pwm_enable(chip);
 			if (rc) {
@@ -1515,7 +1518,9 @@ int pwm_change_mode(struct pwm_device *pwm, enum pm_pwm_mode mode)
 				goto unlock;
 			}
 		}
+#ifndef CONFIG_MACH_ASUS_X00TD
 	}
+#endif
 unlock:
 	spin_unlock_irqrestore(&chip->lpg_lock, flags);
 
