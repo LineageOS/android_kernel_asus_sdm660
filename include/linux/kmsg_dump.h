@@ -50,6 +50,9 @@ struct kmsg_dumper {
 	u32 next_idx;
 	u64 cur_seq;
 	u64 next_seq;
+#ifdef CONFIG_MACH_ASUS_X00TD
+	char *name;
+#endif
 };
 
 #ifdef CONFIG_PRINTK
