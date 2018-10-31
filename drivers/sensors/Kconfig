@@ -12,3 +12,10 @@ config SENSORS_CLASS
 	  You'll need this to do anything useful with sensors.
 
 	  If unsure, say N.
+
+config INPUT_STK3321
+	tristate "STK STK3321 alsps sensor"
+	depends on MACH_ASUS_X00TD && I2C
+	select SENSORS_CLASS
+	help
+	  Say Y here to enable the STK3321 ALSPS Sensor.
