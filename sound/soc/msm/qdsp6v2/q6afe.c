@@ -1658,7 +1658,7 @@ static int afe_spk_prot_prepare(int src_port, int dst_port, int param_id,
 		param_info.module_id = AFE_MODULE_SPEAKER_PROTECTION_V2_EX_VI;
 		break;
 	case AFE_PARAM_ID_TFADSP_RX_CFG:
-		config.pdata.module_id = AFE_MODULE_ID_TFADSP_RX;
+		param_info.module_id = AFE_MODULE_ID_TFADSP_RX;
 		break;
 	default:
 		pr_err("%s: default case 0x%x\n", __func__, param_id);
