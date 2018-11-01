@@ -6953,6 +6953,7 @@ done:
 EXPORT_SYMBOL(afe_release_all_dma_resources);
 
 #ifdef CONFIG_SND_SOC_TFA9874
+#ifdef CONFIG_BROKEN
 static int fill_afe_apr_hdr(struct apr_hdr *apr_hdr, uint32_t port,
 				uint32_t opcode, uint32_t apr_msg_size)
 {
@@ -7134,6 +7135,7 @@ int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 err:
 	return result;
 }
+#endif
 
 int send_tfa_cal_in_band(void *buf, int cmd_size)
 {

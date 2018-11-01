@@ -676,7 +676,7 @@ static ssize_t tfa98xx_dbgfs_fw_state_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
 }
 
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD)
+#if defined(CONFIG_BROKEN) && defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD)
 extern int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead);
 #endif
 
@@ -785,12 +785,14 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 
 	mutex_lock(&tfa98xx->dsp_lock);
 #if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD)
+#ifdef CONFIG_BROKEN
 
 	err = send_tfa_cal_apr(buffer, count, false);
 	if (err)
 		pr_err("[0x%x] dsp_msg error: %d\n", i2c->addr, err);
 
 	mdelay(2);
+#endif
 #else
 	if ((msg_file->data[0] == 'M') && (msg_file->data[1] == 'G')) {
 		error = tfaContWriteFile(tfa98xx->tfa, msg_file, 0, 0); /* int vstep_idx, int vstep_msg_idx both 0 */
