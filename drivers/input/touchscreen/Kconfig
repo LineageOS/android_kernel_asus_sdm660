@@ -1226,6 +1226,23 @@ config TOUCHSCREEN_ST
 
 source "drivers/input/touchscreen/st/Kconfig"
 
+if MACH_ASUS_X01BD
+source "drivers/input/touchscreen/NVT_Touch_X01BD/Kconfig"
+source "drivers/input/touchscreen/synaptics_dsx_X01BD/Kconfig"
+source "drivers/input/touchscreen/focaltech_touch/Kconfig"
+
+config TOUCHSCREEN_HIMAX_CHIPSET
+	bool "Himax touchpanel CHIPSET"
+	depends on I2C
+	help
+	  Say Y here if you have a Himax CHIPSET touchscreen.
+	  HIMAX controllers are multi touch controllers which can
+	  report 10 touches at a time.
+
+          If unsure, say N.
+source "drivers/input/touchscreen/hxchipset/Kconfig"
+endif
+
 if MACH_ASUS_X00TD
 source "drivers/input/touchscreen/NVT_Touch/Kconfig"
 endif
