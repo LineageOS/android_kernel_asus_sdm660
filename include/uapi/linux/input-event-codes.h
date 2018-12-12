@@ -604,7 +604,7 @@
 #define KEY_BRIGHTNESS_MIN		0x250	/* Set Brightness to Minimum */
 #define KEY_BRIGHTNESS_MAX		0x251	/* Set Brightness to Maximum */
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X001BD)
+#ifdef CONFIG_MACH_ASUS_X00TD
 #define FP_KEY_UP		0x258
 #define FP_KEY_DOWN		0x259
 #define FP_KEY_LEFT		0x25a
@@ -669,14 +669,23 @@
 #define KEY_SARSENSOR_FAR		0x2eb
 #endif
 
-#if defined(CONFIG_TOUCHSCREEN_NT36xxx) || defined(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_v27)
+#if defined(CONFIG_TOUCHSCREEN_NT36xxx) || defined(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_v27) ||  defined(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_X01BD)
 #define KEY_TP_GESTURE_W 	0x2ec
 #define KEY_TP_GESTURE_E 	0x2ed
 #define KEY_TP_GESTURE_S 	0x2ee
 #define KEY_TP_GESTURE_Z 	0x2ef
 #define KEY_TP_GESTURE_C 	0x2f0
 #define KEY_TP_GESTURE_V 	0x2f1
+#ifdef CONFIG_MACH_ASUS_X01BD
+#define KEY_TP_GESTURE_SWIPE_UP         0x2F6
+#define KEY_TP_GESTURE_DOUBLE_CLICK     0x2F7
 #endif
+#endif
+#endif
+
+#ifdef CONFIG_MACH_ASUS_X01BD
+#define KEY_TP_GESTURE_SWIPE_UP 	0x2F6
+#define KEY_TP_GESTURE_DOUBLE_CLICK 	0x2F7
 #endif
 
 /* We avoid low common keys in module aliases so they don't get huge. */
