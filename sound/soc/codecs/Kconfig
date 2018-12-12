@@ -191,6 +191,7 @@ config SND_SOC_ALL_CODECS
 
           If unsure select "N".
 
+
 config SND_SOC_88PM860X
 	tristate
 

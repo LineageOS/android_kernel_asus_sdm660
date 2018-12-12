@@ -534,7 +534,7 @@ typedef enum nxpTfa9894BfEnumList {
    { 0xffff,"Unknown bitfield enum" }   /* not found */\
 };
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 #define TFA9894_BITNAMETABLE static tfaBfName_t Tfa9894BitNames[]= {\
    { 0x0, "powerdown"},    /* Powerdown control                                 , */\
    { 0x10, "reset"},    /* I2C Reset - Auto clear                            , */\

@@ -378,7 +378,7 @@ typedef enum nxpTFA9896BfEnumList {
    { 0xffff,"Unknown bitfield enum" }   /* not found */\
 };
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 #define TFA9896_BITNAMETABLE static tfaBfName_t Tfa9896BitNames[]= {\
    { 0x0, "flag_por"},    /* Power-on-reset flag (auto clear by reading)       , */\
    { 0x10, "flag_pll_lock"},    /* PLL lock to programmed frequency                  , */\

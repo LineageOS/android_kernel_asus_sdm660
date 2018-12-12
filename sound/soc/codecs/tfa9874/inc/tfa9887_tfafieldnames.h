@@ -33,7 +33,7 @@
    { 0xffff,"Unknown bitfield enum" }   /* not found */\
 };
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 #define TFA9887_BITNAMETABLE static tfaBfName_t Tfa9887BitNames[]= {\
    { 0x402, "i2s_seti"},    /* I2SFormat data 1 input:                           , */\
    { 0x431, "chan_sel1"},    /* ChannelSelection data1 input  (In CoolFlux)       , */\
