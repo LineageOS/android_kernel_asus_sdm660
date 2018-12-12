@@ -26,7 +26,9 @@
 #include <linux/delay.h>
 #include <linux/leds-qpnp-wled.h>
 #include <linux/qpnp/qpnp-revid.h>
-
+#ifdef CONFIG_MACH_ASUS_X01BD
+static char mdss_mdp_panel[256];
+#endif
 /* base addresses */
 #define QPNP_WLED_CTRL_BASE		"qpnp-wled-ctrl-base"
 #define QPNP_WLED_SINK_BASE		"qpnp-wled-sink-base"
@@ -1139,7 +1141,10 @@ static void qpnp_wled_set(struct led_classdev *led_cdev,
 	struct qpnp_wled *wled;
 
 	wled = container_of(led_cdev, struct qpnp_wled, cdev);
-
+#ifdef CONFIG_MACH_ASUS_X01BD
+	if (level > 48)
+		level = level*level/4095 +48;
+#endif
 	if (level < LED_OFF)
 		level = LED_OFF;
 	else if (level > wled->cdev.max_brightness)
@@ -2161,6 +2166,11 @@ static int qpnp_wled_config(struct qpnp_wled *wled)
 		pr_err("Failed to auto-calibrate at init rc=%d\n", rc);
 
 	/* setup ovp and sc irqs */
+#ifdef CONFIG_MACH_ASUS_X01BD
+	if (strstr(mdss_mdp_panel, "esd_disabled") != NULL) {
+		wled->ovp_irq = -1;
+	}
+#endif
 	if (wled->ovp_irq >= 0) {
 		rc = devm_request_threaded_irq(&wled->pdev->dev, wled->ovp_irq,
 				NULL, qpnp_wled_ovp_irq_handler, IRQF_ONESHOT,
