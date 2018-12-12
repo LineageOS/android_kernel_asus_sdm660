@@ -451,7 +451,7 @@ static ssize_t sensors_calibrate_store(struct device *dev,
 	return size;
 }
 
-#ifndef CONFIG_MACH_ASUS_X00TD
+#if !defined(CONFIG_MACH_ASUS_X00TD) || !defined(CONFIG_MACH_ASUS_X01BD)
 static struct device_attribute sensors_class_attrs[] = {
 	__ATTR(name, 0444, sensors_name_show, NULL),
 	__ATTR(vendor, 0444, sensors_vendor_show, NULL),
@@ -517,7 +517,7 @@ void sensors_classdev_unregister(struct sensors_classdev *sensors_cdev)
 }
 EXPORT_SYMBOL(sensors_classdev_unregister);
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 static DEVICE_ATTR_RO(sensors_name);
 static DEVICE_ATTR_RO(sensors_vendor);
 static DEVICE_ATTR_RO(sensors_version);
@@ -578,7 +578,7 @@ static int __init sensors_init(void)
 	sensors_class = class_create(THIS_MODULE, "sensors");
 	if (IS_ERR(sensors_class))
 		return PTR_ERR(sensors_class);
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined (CONFIG_MACH_ASUS_X01BD)
 	sensors_class->dev_groups = sensor_groups;
 #else
 	sensors_class->dev_attrs = sensors_class_attrs;
