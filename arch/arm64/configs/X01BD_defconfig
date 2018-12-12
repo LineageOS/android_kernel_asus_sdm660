@@ -320,13 +320,13 @@ CONFIG_TOUCHSCREEN_FTS=y
 CONFIG_INPUT_FINGERPRINT=y
 # Huaqin add for HQ000001 by puqirui at 2018/09/03 start
 # CONFIG_COMMON_FP is not set
-CONFIG_CDFINGER_FP=y
+CONFIG_X01BD_CDFINGER_FP=y
 # Huaqin add for ZQL1650-143 by wangxiang at 2018/02/09 start
 # CONFIG_GOODIX_FP is not set
 # Huaqin add for ZQL1650-143 by wangxiang at 2018/02/09 end
 # Huaqin add for HQ000001 by puqirui at 2018/09/03 end
 # Huaqin add for ZQL1820-42 by puqirui at 2018/08/02 start
-CONFIG_FOCALTECH_FP=y
+CONFIG_X01BD_FOCALTECH_FP=y
 # Huaqin add for ZQL1820-42 by puqirui at 2018/08/02 end
 # Huaqin modify for ZQL1650-143 by wangxiang at 2018/01/23 end
 #Huaqin modify for ZQL1650-1357 by diganyun at 2018/05/22  start
