@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/iio/consumer.h>
 #include <linux/qpnp/qpnp-revid.h>
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 #include <linux/switch.h>
 #endif
 #include "fg-core.h"
@@ -411,7 +411,7 @@ module_param_named(
 static int fg_restart;
 static bool fg_sram_dump;
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 struct battery_name {
 	struct switch_dev battery_switch_dev;
 	char battery_name_type[100];
@@ -953,7 +953,7 @@ static int fg_batt_missing_config(struct fg_chip *chip, bool enable)
 	return rc;
 }
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 ssize_t battery_print_name(struct switch_dev *sdev, char *buf)
 {
 	return sprintf(buf, "%s\n", battery_name.battery_name_type);
@@ -1043,7 +1043,7 @@ static int fg_get_batt_profile(struct fg_chip *chip)
 		return rc;
 	}
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 	strcpy(battery_name.battery_name_type, chip->bp.batt_type_str);
 	battery_switch_register();
 #endif
@@ -5545,7 +5545,7 @@ static void fg_gen3_shutdown(struct platform_device *pdev)
 {
 	struct fg_chip *chip = dev_get_drvdata(&pdev->dev);
 	int rc, bsoc;
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 	u8 status;
 
 	rc = fg_read(chip, BATT_INFO_BATT_MISS_CFG(chip), &status, 1);
