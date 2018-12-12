@@ -307,7 +307,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		bool compressed;
 		size_t total_len;
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 		big_oops_buf = NULL;
 #endif
 
@@ -363,7 +363,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 
 static struct kmsg_dumper pstore_dumper = {
 	.dump = pstore_dump,
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 	.name = "pstore_ramoops",
 #endif
 };
