@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/iio/consumer.h>
 #include <linux/qpnp/qpnp-revid.h>
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 #include <linux/switch.h>
 #endif
 #include "fg-core.h"
@@ -411,7 +411,7 @@ module_param_named(
 static int fg_restart;
 static bool fg_sram_dump;
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 struct battery_name {
 	struct switch_dev battery_switch_dev;
 	char battery_name_type[100];
@@ -953,7 +953,7 @@ static int fg_batt_missing_config(struct fg_chip *chip, bool enable)
 	return rc;
 }
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 ssize_t battery_print_name(struct switch_dev *sdev, char *buf)
 {
 	return sprintf(buf, "%s\n", battery_name.battery_name_type);
@@ -1043,7 +1043,7 @@ static int fg_get_batt_profile(struct fg_chip *chip)
 		return rc;
 	}
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 	strcpy(battery_name.battery_name_type, chip->bp.batt_type_str);
 	battery_switch_register();
 #endif
@@ -3779,6 +3779,21 @@ static int fg_psy_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CAPACITY:
 		rc = fg_get_prop_capacity(chip, &pval->intval);
+#ifdef CONFIG_MACH_ASUS_X01BD
+		/* if soc is 0, hold soc 1 when vol over 3.4v  */
+		if(1 > pval->intval) {
+			pr_info("func %s, cap below 1 = %d \n",__func__, pval->intval);
+			rc = fg_get_battery_voltage(chip, &pval->intval);
+			pr_info("vol = %d \n", pval->intval);
+			if(pval->intval > 3400000) {
+				pr_info(" vol below 3.4v = %d \n", pval->intval);
+				pval->intval = 1;
+			}else {
+				rc = fg_get_prop_capacity(chip, &pval->intval);
+				pr_info("still keep cap = %d \n",pval->intval);
+			}
+		}
+#endif
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_RAW:
 		rc = fg_get_msoc_raw(chip, &pval->intval);
@@ -5085,7 +5100,9 @@ static int fg_parse_dt(struct fg_chip *chip)
 			pr_warn("Error reading Jeita thresholds, default values will be used rc:%d\n",
 				rc);
 	}
-
+#ifdef CONFIG_MACH_ASUS_X01BD
+	printk("enter fg_parse_dt :HW jeita cold:%d,cool:%d,warm:%d,hot:%d\n", chip->dt.jeita_thresholds[JEITA_COLD],chip->dt.jeita_thresholds[JEITA_COOL] ,chip->dt.jeita_thresholds[JEITA_WARM],chip->dt.jeita_thresholds[JEITA_HOT]); 
+#endif
 	if (of_property_count_elems_of_size(node,
 		"qcom,battery-thermal-coefficients",
 		sizeof(u8)) == BATT_THERM_NUM_COEFFS) {
@@ -5545,7 +5562,7 @@ static void fg_gen3_shutdown(struct platform_device *pdev)
 {
 	struct fg_chip *chip = dev_get_drvdata(&pdev->dev);
 	int rc, bsoc;
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 	u8 status;
 
 	rc = fg_read(chip, BATT_INFO_BATT_MISS_CFG(chip), &status, 1);
