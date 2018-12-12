@@ -820,7 +820,7 @@ uint16_t tfa_get_bf_value(const uint16_t bf, const uint16_t reg_value);
 int tfa_write_reg(struct tfa_device *tfa, const uint16_t bf, const uint16_t reg_value);
 int tfa_read_reg(struct tfa_device *tfa, const uint16_t bf);
 
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 /* bitfield */
 /** 
  * get the datasheet or bitfield name corresponding to the bitfield number
