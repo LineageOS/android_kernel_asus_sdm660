@@ -56,7 +56,7 @@ static int msm_get_read_mem_size
 		for (i = 0; i < eeprom_map->memory_map_size; i++) {
 			if (eeprom_map->mem_settings[i].i2c_operation ==
 				MSM_CAM_READ
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 				|| eeprom_map->mem_settings[i].i2c_operation ==
 				MSM_CAM_SINGLE_LOOP_READ
 #endif
@@ -411,7 +411,7 @@ static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 				memptr += eeprom_map->mem_settings[i].reg_data;
 			}
 			break;
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 			case MSM_CAM_SINGLE_LOOP_READ: {
 				uint16_t m;
 				uint16_t read_val = 0;

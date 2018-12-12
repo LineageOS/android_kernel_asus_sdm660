@@ -256,7 +256,7 @@ enum msm_camera_i2c_operation {
 	MSM_CAM_WRITE = 0,
 	MSM_CAM_POLL,
 	MSM_CAM_READ,
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 	MSM_CAM_SINGLE_LOOP_READ,
 #endif
 };

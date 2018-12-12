@@ -619,7 +619,7 @@ static int32_t msm_flash_low(
 	for (i = 0; i < flash_ctrl->flash_num_sources; i++)
 		if (flash_ctrl->flash_trigger[i])
 			led_trigger_event(flash_ctrl->flash_trigger[i], 0);
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 	if (flash_ctrl->switch_trigger)
 		led_trigger_event(flash_ctrl->switch_trigger, 0);
 #endif
@@ -660,7 +660,7 @@ static int32_t msm_flash_high(
 	for (i = 0; i < flash_ctrl->torch_num_sources; i++)
 		if (flash_ctrl->torch_trigger[i])
 			led_trigger_event(flash_ctrl->torch_trigger[i], 0);
-#ifdef CONFIG_MACH_ASUS_X00TD
+#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
 	if (flash_ctrl->switch_trigger)
 		led_trigger_event(flash_ctrl->switch_trigger, 0);
 #endif
