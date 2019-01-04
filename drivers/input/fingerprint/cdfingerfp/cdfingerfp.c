@@ -55,6 +55,7 @@ struct cdfinger_key_map {
 	unsigned int code;
 };
 
+/* Huaqin modify for TT1240582 by puqirui at 2018/09/21 start */
 #define CDFINGER_IOCTL_MAGIC_NO          0xFB
 #define CDFINGER_INIT                    _IOW(CDFINGER_IOCTL_MAGIC_NO, 0, uint8_t)
 #define CDFINGER_GETIMAGE                _IOW(CDFINGER_IOCTL_MAGIC_NO, 1, uint8_t)
@@ -80,6 +81,7 @@ struct cdfinger_key_map {
 #define CDFINGER_POWER_OFF					_IO(CDFINGER_IOCTL_MAGIC_NO,24)
 #define CDFINGER_RELEASE_DEVICE	 _IO(CDFINGER_IOCTL_MAGIC_NO,25)
 #define CDFINGER_WAKE_LOCK	 _IOW(CDFINGER_IOCTL_MAGIC_NO,26,uint8_t)
+#define CDFINGER_ENABLE_IRQ            	_IOW(CDFINGER_IOCTL_MAGIC_NO, 27, uint8_t)
 
 /*if want change key value for event , do it*/
 /* Huaqin add define for fingerprint nav-keycode by leiyu at 2018/04/12 start */
@@ -102,6 +104,7 @@ static int isInKeyMode = 0; // key mode
 static int irq_flag = 0;
 static int screen_status = 1; // screen on
 static u8 cdfinger_debug = 0x01;
+static char wake_flag = 0;
 #define CDFINGER_DBG(fmt, args...) \
 	do{ \
 		if(cdfinger_debug & 0x01) \
@@ -112,7 +115,14 @@ static u8 cdfinger_debug = 0x01;
 		printk( "[DBG][cdfinger]:%5d: <%s>" fmt, __LINE__,__func__,##args ); \
 	}while(0)
 
+#define FP_BOOST_MS   500
+#define FP_BOOST_INTERVAL   (500*USEC_PER_MSEC)
 
+static struct workqueue_struct *fp_boost_wq;
+
+static struct work_struct fp_boost_work;
+static struct delayed_work fp_boost_rem;
+static bool fp_boost_active=false;
 
 struct cdfingerfp_data {
 	struct platform_device *cdfinger_dev;
@@ -125,6 +135,7 @@ struct cdfingerfp_data {
 	struct input_dev* cdfinger_input;
 	struct notifier_block notifier;
 	struct mutex buf_lock;
+	int irq_enable_status;
 }*g_cdfingerfp_data;
 
 static struct cdfinger_key_map maps[] = {
@@ -142,6 +153,51 @@ static struct cdfinger_key_map maps[] = {
 	{ EV_KEY, CF_NAV_INPUT_DOUBLE_CLICK },
 	{ EV_KEY, CF_NAV_INPUT_LONG_PRESS },
 };
+
+static void do_fp_boost_rem(struct work_struct *work)
+{
+	unsigned int ret;
+
+	/* Update policies for all online CPUs */
+	if(fp_boost_active) {
+		ret = sched_set_boost(0);
+		if (ret)
+			pr_err("cpu-boost: HMP boost disable failed\n");
+		fp_boost_active = false;
+	}
+}
+
+static void do_fp_boost(struct work_struct *work)
+{
+	unsigned int ret;
+
+	cancel_delayed_work_sync(&fp_boost_rem);
+	if(fp_boost_active==false) {
+		ret = sched_set_boost(1);
+		if (ret)
+			pr_err("cpu-boost: HMP boost enable failed\n");
+		else
+			fp_boost_active=true;
+	}
+	queue_delayed_work(fp_boost_wq, &fp_boost_rem,
+					msecs_to_jiffies(FP_BOOST_MS));
+}
+
+static void fp_cpuboost(void)
+{
+	u64 now;
+	static u64 last_time=0;
+
+	now = ktime_to_us(ktime_get());
+	if (now - last_time <FP_BOOST_INTERVAL)
+		return;
+
+	if (work_pending(&fp_boost_work))
+		return;
+
+	queue_work(fp_boost_wq, &fp_boost_work);
+	last_time = ktime_to_us(ktime_get());
+}
 
 static int cdfinger_init_gpio(struct cdfingerfp_data *cdfinger)
 {
@@ -321,22 +377,47 @@ static int cdfinger_release(struct inode *inode,struct file *file)
 	return 0;
 }
 
+static void cdfinger_wake_lock(struct cdfingerfp_data *pdata,int arg)
+{
+	if(arg)
+	{
+		if(wake_flag == 0){
+			wake_lock(&pdata->cdfinger_lock);
+			wake_flag = 1;
+		}
+	}
+	else
+	{
+		if(wake_flag == 1){
+			wake_unlock(&pdata->cdfinger_lock);
+			wake_flag = 0;
+		}
+	}
+}
+
 static void cdfinger_async_report(void)
 {
 	struct cdfingerfp_data *cdfingerfp = g_cdfingerfp_data;
-	wake_lock_timeout(&cdfingerfp->cdfinger_lock, msecs_to_jiffies(1000));
 	kill_fasync(&cdfingerfp->async_queue,SIGIO,POLL_IN);
 }
 
 static irqreturn_t cdfinger_eint_handler(int irq, void *dev_id)
 {
+#if 0
 /* Huaqin modify for cpu_boost by leiyu at 2018/04/25 start */
 	if(screen_status == 0)
 	{
 		sched_set_boost(1);
 	}
 /* Huaqin modify for cpu_boost by leiyu at 2018/04/25 end */
-	cdfinger_async_report();
+#endif
+	struct cdfingerfp_data *pdata = g_cdfingerfp_data;
+	if (pdata->irq_enable_status == 1)
+	{
+		fp_cpuboost();
+		cdfinger_wake_lock(pdata,1);
+		cdfinger_async_report();
+	}
 	return IRQ_HANDLED;
 }
 
@@ -374,30 +455,57 @@ static int cdfinger_eint_gpio_init(struct cdfingerfp_data *pdata)
 /* Huaqin modify for cdfinger irq wake by leiyu at 2018/04/10 start */
 	int error = 0;
 /* Huaqin modify for cpu_boost by leiyu at 2018/04/25 start */
-	error = commonfp_request_irq(NULL,cdfinger_eint_handler, IRQF_TRIGGER_RISING|IRQF_ONESHOT,"cdfinger_eint", (void*)pdata);
-/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 end */
+	//error = commonfp_request_irq(NULL,cdfinger_eint_handler, IRQF_TRIGGER_RISING|IRQF_ONESHOT,"cdfinger_eint", (void*)pdata);
+	error = commonfp_request_irq(cdfinger_eint_handler,NULL, IRQF_TRIGGER_RISING,"cdfinger_eint", (void*)pdata);/* Huaqin modify for cpu_boost by leiyu at 2018/04/25 end */
 	if (error < 0)
 	{
 		CDFINGER_ERR("commonfp_request_irq error %d\n", error);
 		return error;
 	}
 	commonfp_irq_enable();
+	pdata->irq_enable_status = 1;
+	irq_flag = 1;
 	return error;
 /* Huaqin modify for cdfinger irq wake by leiyu at 2018/04/10 end */
 }
 
-static void cdfinger_wake_lock(struct cdfingerfp_data *pdata,int arg)
+static void cdfinger_enable_irq(struct cdfingerfp_data *pdata)
 {
-	CDFINGER_DBG("cdfinger_wake_lock enter----------\n");
-	if(arg)
+	if (pdata->irq_enable_status == 0)
 	{
-		wake_lock(&pdata->cdfinger_lock);
+		commonfp_irq_enable();
+		pdata->irq_enable_status = 1;
 	}
-	else
+}
+
+static void cdfinger_disable_irq(struct cdfingerfp_data *pdata)
+{
+	if (pdata->irq_enable_status == 1)
 	{
-		wake_unlock(&pdata->cdfinger_lock);
-		wake_lock_timeout(&pdata->cdfinger_lock, msecs_to_jiffies(3000));
+		commonfp_irq_disable();
+		pdata->irq_enable_status = 0;
 	}
+}
+
+static int cdfinger_irq_controller(struct cdfingerfp_data *pdata, int Onoff)
+{
+	if (irq_flag == 0)
+	{
+		CDFINGER_ERR("irq  not request!!!\n");
+		return -1;
+	}
+	if (Onoff == 1)
+	{
+		cdfinger_enable_irq(pdata);
+		return 0;
+	}
+	if (Onoff == 0)
+	{
+		cdfinger_disable_irq(pdata);
+		return 0;
+	}
+	CDFINGER_ERR("irq  status parameter err %d !!!\n", Onoff);
+	return -1;
 }
 
 static int cdfinger_report_key(struct cdfingerfp_data *cdfinger, unsigned long arg)
@@ -474,13 +582,15 @@ static long cdfinger_ioctl(struct file* filp, unsigned int cmd, unsigned long ar
 			break;
 		case CDFINGER_INITERRUPT_MODE:
 			isInKeyMode = 1;  // not key mode
-			cdfinger_reset_gpio_init(cdfinger,1);
 			break;
 		case CDFINGER_HW_RESET:
 			cdfinger_reset_gpio_init(cdfinger,arg);
 			break;
 		case CDFINGER_GET_STATUS:
 			err = screen_status;
+			break;
+		case CDFINGER_ENABLE_IRQ:
+			err = cdfinger_irq_controller(cdfinger, arg);
 			break;
 		default:
 			break;	
@@ -489,6 +599,7 @@ static long cdfinger_ioctl(struct file* filp, unsigned int cmd, unsigned long ar
 	return err;
 }
 
+/* Huaqin modify for TT1240582 by puqirui at 2018/09/21 end */
 static const struct file_operations cdfinger_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = cdfinger_open,
@@ -524,9 +635,11 @@ static int cdfinger_fb_notifier_callback(struct notifier_block* self,
 		if (isInKeyMode == 0)
 			cdfinger_async_report();
 		mutex_unlock(&g_cdfingerfp_data->buf_lock);
+#if 0
 /* Huaqin modify for cpu_boost by leiyu at 2018/04/25 start */
 		sched_set_boost(0);
 /* Huaqin modify for cpu_boost by leiyu at 2018/04/25 end */
+#endif
 		printk("sunlin==FB_BLANK_UNBLANK==\n");
             break;
         case FB_BLANK_POWERDOWN:
@@ -584,7 +697,13 @@ static int cdfinger_probe(struct platform_device *pdev)
 	  cdfingerdev->cdfinger_input = NULL;
 	  goto unregister_dev;
 	}
-	
+
+	fp_boost_wq = alloc_workqueue("fp_cpuboost_wq", WQ_HIGHPRI, 0);
+	if (!fp_boost_wq)
+		return -EFAULT;
+	INIT_WORK(&fp_boost_work, do_fp_boost);
+	INIT_DELAYED_WORK(&fp_boost_rem, do_fp_boost_rem); 
+
 	cdfingerdev->notifier.notifier_call = cdfinger_fb_notifier_callback;
     	fb_register_client(&cdfingerdev->notifier);
 	//cdfinger_power_on(cdfingerdev);

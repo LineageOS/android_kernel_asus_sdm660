@@ -155,6 +155,7 @@ static unsigned int rndis_qc_bitrate(struct usb_gadget *g)
 /* interface descriptor: */
 
 /* interface descriptor: Supports "Wireless" RNDIS; auto-detected by Windows*/
+//Huaqin add by tangqingyong for rndis devicedescribe at 20181011 start
 static struct usb_interface_descriptor rndis_qc_control_intf = {
 	.bLength =		sizeof(rndis_qc_control_intf),
 	.bDescriptorType =	USB_DT_INTERFACE,
@@ -162,11 +163,12 @@ static struct usb_interface_descriptor rndis_qc_control_intf = {
 	/* .bInterfaceNumber = DYNAMIC */
 	/* status endpoint is optional; this could be patched later */
 	.bNumEndpoints =	1,
-	.bInterfaceClass =	USB_CLASS_MISC,
-	.bInterfaceSubClass =   0x04,
-	.bInterfaceProtocol =   0x01, /* RNDIS over ethernet */
+	.bInterfaceClass =	USB_CLASS_WIRELESS_CONTROLLER,
+	.bInterfaceSubClass =   0x01,
+	.bInterfaceProtocol =   0x03, /* RNDIS over ethernet */
 	/* .iInterface = DYNAMIC */
 };
+//Huaqin add by tangqingyong for rndis devicedescribe at 20181011 end
 
 static struct usb_cdc_header_desc rndis_qc_header_desc = {
 	.bLength =		sizeof(rndis_qc_header_desc),
