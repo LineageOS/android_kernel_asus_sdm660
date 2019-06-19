@@ -836,11 +836,9 @@ static irqreturn_t msm_cpp_irq(int irq_num, void *data)
 	if (irq_status & 0x8) {
 		tx_level = msm_camera_io_r(cpp_dev->base +
 			MSM_CPP_MICRO_FIFO_TX_STAT) >> 2;
-		if (tx_level < MSM_CPP_TX_FIFO_LEVEL) {
-			for (i = 0; i < tx_level; i++) {
-				tx_fifo[i] = msm_camera_io_r(cpp_dev->base +
-					MSM_CPP_MICRO_FIFO_TX_DATA);
-			}
+		for (i = 0; i < tx_level; i++) {
+			tx_fifo[i] = msm_camera_io_r(cpp_dev->base +
+				MSM_CPP_MICRO_FIFO_TX_DATA);
 		} else {
 			pr_err("Fatal invalid tx level %d", tx_level);
 			goto err;
