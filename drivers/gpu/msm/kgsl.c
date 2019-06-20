@@ -542,7 +542,7 @@ int kgsl_context_init(struct kgsl_device_private *dev_priv,
 	 */
 	spin_lock(&proc_priv->ctxt_count_lock);
 	if (atomic_read(&proc_priv->ctxt_count) > KGSL_MAX_CONTEXTS_PER_PROC) {
-		KGSL_DRV_ERR(device,
+		KGSL_DRV_ERR_RATELIMIT(device,
 			"Per process context limit reached for pid %u",
 			dev_priv->process_priv->pid);
 		spin_unlock(&proc_priv->ctxt_count_lock);
@@ -2122,7 +2122,7 @@ static int memdesc_sg_virt(struct kgsl_memdesc *memdesc, struct file *vmfile)
 
 	if (ret == 0) {
 		npages = get_user_pages(current, current->mm, memdesc->useraddr,
-					sglen, write, 0, pages, NULL);
+					sglen, write ? FOLL_WRITE : 0, pages, NULL);
 		ret = (npages < 0) ? (int)npages : 0;
 	}
 	up_read(&current->mm->mmap_sem);
