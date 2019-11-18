@@ -209,7 +209,7 @@ struct sdm660_cdc_priv {
 	struct fw_info *fw_data;
 	struct notifier_block audio_ssr_nb;
 	int (*codec_spk_ext_pa_cb)(struct snd_soc_codec *codec, int enable);
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	int (*codec_hph_ext_sw_cb)(struct snd_soc_codec *codec, int enable);
 #endif
 	unsigned long status_mask;
@@ -240,7 +240,7 @@ extern void msm_anlg_cdc_spk_ext_pa_cb(
 		int (*codec_spk_ext_pa)(struct snd_soc_codec *codec,
 		int enable), struct snd_soc_codec *codec);
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 extern void msm_anlg_cdc_hph_ext_sw_cb(
 		int (*codec_hph_ext_sw)(struct snd_soc_codec *codec,
 		int enable), struct snd_soc_codec *codec);

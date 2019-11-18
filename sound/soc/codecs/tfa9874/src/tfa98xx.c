@@ -87,7 +87,7 @@ static int pcm_sample_format = 0;
 module_param(pcm_sample_format, int, S_IRUGO);
 MODULE_PARM_DESC(pcm_sample_format, "PCM sample format: 0=S16_LE, 1=S24_LE, 2=S32_LE\n");
 
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 static int pcm_no_constraint = 1;
 #else
 static int pcm_no_constraint = 0;
@@ -676,7 +676,7 @@ static ssize_t tfa98xx_dbgfs_fw_state_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
 }
 
-#if defined(CONFIG_BROKEN) && defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_BROKEN) && defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 extern int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead);
 #endif
 
@@ -702,7 +702,7 @@ static ssize_t tfa98xx_dbgfs_rpc_read(struct file *file,
 
 	buffer = kmalloc(count, GFP_KERNEL);
 	if (buffer == NULL) {
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 		pr_err("[0x%x] can not allocate memory\n", i2c->addr);
 #else
 		pr_debug("[0x%x] can not allocate memory\n", tfa98xx->i2c->addr);
@@ -711,13 +711,13 @@ static ssize_t tfa98xx_dbgfs_rpc_read(struct file *file,
 	}
 
 	mutex_lock(&tfa98xx->dsp_lock);
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 	ret = copy_to_user(user_buf, buffer, count);
 #else
 	error = dsp_msg_read(tfa98xx->tfa, count, buffer);
 #endif
 	mutex_unlock(&tfa98xx->dsp_lock);
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 	if (ret) {
 		pr_err("[0x%x] dsp_msg_read error: %d\n", i2c->addr, ret);
 #else
@@ -743,7 +743,7 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 {
 	struct i2c_client *i2c = file->private_data;
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 	uint8_t *buffer;
 #else
 	nxpTfaFileDsc_t *msg_file;
@@ -762,7 +762,7 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 		return 0;
 
 	/* msg_file.name is not used */
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 	buffer = kmalloc(count, GFP_KERNEL);
 	if ( buffer == NULL ) {
 		pr_err("[0x%x] can not allocate memory\n", i2c->addr);
@@ -773,7 +773,7 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 #endif
 		return  -ENOMEM;
 	}
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 
 	if (copy_from_user(buffer, user_buf, count))
 #else
@@ -784,7 +784,7 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 		return -EFAULT;
 
 	mutex_lock(&tfa98xx->dsp_lock);
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 #ifdef CONFIG_BROKEN
 
 	err = send_tfa_cal_apr(buffer, count, false);
@@ -810,7 +810,7 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 #endif
 	mutex_unlock(&tfa98xx->dsp_lock);
 
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 	kfree(buffer);
 #else
 	kfree(msg_file);
@@ -1419,7 +1419,7 @@ static int tfa98xx_get_cal_ctl(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 #define CHIP_SELECTOR_STEREO	(0)
 #define CHIP_SELECTOR_LEFT	(1)
 #define CHIP_SELECTOR_RIGHT	(2)
@@ -1501,7 +1501,7 @@ static int tfa98xx_create_controls(struct tfa98xx *tfa98xx)
 	 *  - Stop control on TFA1 devices
 	 */
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	nr_controls = 4; /* Profile and stop control */
 #else
 	nr_controls = 2; /* Profile and stop control */
@@ -1616,7 +1616,7 @@ static int tfa98xx_create_controls(struct tfa98xx *tfa98xx)
 		mix_index++;
 	}
 
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
         tfa98xx_controls[mix_index].name = "TFA_CHIP_SELECTOR";
         tfa98xx_controls[mix_index].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
         tfa98xx_controls[mix_index].info = tfa98xx_info_stereo_ctl;
@@ -2330,7 +2330,7 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 		return;
 	}
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	mutex_lock(&tfa98xx_mutex);
 #endif
 	mutex_lock(&tfa98xx->dsp_lock);
@@ -2353,12 +2353,12 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 					ret, tfa98xx->init_count);
 			reschedule = true;
 		} else {
-#if !defined(CONFIG_MACH_ASUS_X00TD) || !defined(CONFIG_MACH_ASUS_X01BD)
+#ifndef CONFIG_MACH_ASUS_SDM660
 			mutex_lock(&tfa98xx_mutex);
 #endif
 			if (tfa98xx_sync_count < tfa98xx_device_count)
 				tfa98xx_sync_count++;
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 			sync = false; /* set false to avoid sync */
 #else
 			mutex_unlock(&tfa98xx_mutex);
@@ -2395,7 +2395,7 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 		tfa98xx->init_count = 0;
 	}
 	mutex_unlock(&tfa98xx->dsp_lock);
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	mutex_unlock(&tfa98xx_mutex);
 #endif
 
@@ -2651,7 +2651,7 @@ static int tfa98xx_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 extern int send_tfa_cal_in_band(void *buf, int cmd_size);
 
 static uint8_t bytes[3*3+1] = {0};
@@ -2740,12 +2740,12 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 		mutex_unlock(&tfa98xx->dsp_lock);
 	} else {
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 		{
 #endif
 			tfa98xx->pstream = 1;
 
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
 			/* Start DSP */
 			if ((tfa98xx->flags & TFA98XX_FLAG_CHIP_SELECTED) &&
 				(tfa98xx->dsp_init != TFA98XX_DSP_INIT_PENDING))
@@ -2759,7 +2759,7 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 			tfa98xx->cstream = 1;
 
 #ifndef CONFIG_SND_SOC_TFA9874
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 		switch(tfa98xx_controls)
 #endif
 
@@ -3211,7 +3211,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
-#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#if defined(CONFIG_SND_SOC_TFA9874) && defined(CONFIG_MACH_ASUS_SDM660)
         tfa98xx->flags |= TFA98XX_FLAG_CHIP_SELECTED;
 #endif
 

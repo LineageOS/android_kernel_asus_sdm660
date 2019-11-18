@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/mfd/msm-cdc-pinctrl.h>
 #include <sound/pcm_params.h>
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 #include <linux/delay.h>
 #endif
 #include "qdsp6v2/msm-pcm-routing-v2.h"
@@ -485,7 +485,7 @@ done:
 	return ret;
 }
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 extern int hph_ext_en_gpio;
 extern int hph_ext_sw_gpio;
 
@@ -505,7 +505,7 @@ static int enable_hph_ext_sw(struct snd_soc_codec *codec, int enable)
 static int is_ext_spk_gpio_support(struct platform_device *pdev,
 				   struct msm_asoc_mach_data *pdata)
 {
-#if !defined(CONFIG_MACH_ASUS_X00TD) || !defined(CONFIG_MACH_ASUS_X01BD)
+#ifndef CONFIG_MACH_ASUS_SDM660
 	const char *spk_ext_pa = "qcom,msm-spk-ext-pa";
 
 	pr_debug("%s:Enter\n", __func__);
@@ -530,7 +530,7 @@ static int is_ext_spk_gpio_support(struct platform_device *pdev,
 
 static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 {
-#if !defined(CONFIG_MACH_ASUS_X00TD) || !defined(CONFIG_MACH_ASUS_X01BD)
+#ifndef CONFIG_MACH_ASUS_SDM660
 	struct snd_soc_card *card = codec->component.card;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret;
@@ -1333,7 +1333,7 @@ static void *def_msm_int_wcd_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm_int_wcd_cal)->X) = (Y))
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	S(v_hs_max, 1700);
 #else
 	S(v_hs_max, 1500);
@@ -1362,7 +1362,7 @@ static void *def_msm_int_wcd_mbhc_cal(void)
 	 */
 	btn_low[0] = 75;
 	btn_high[0] = 75;
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	btn_low[1] = 225;
 	btn_high[1] = 225;
 	btn_low[2] = 450;
@@ -1436,7 +1436,7 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_sync(dapm);
 
 	msm_anlg_cdc_spk_ext_pa_cb(enable_spk_ext_pa, ana_cdc);
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	msm_anlg_cdc_hph_ext_sw_cb(enable_hph_ext_sw, ana_cdc);
 #endif
 	msm_dig_cdc_hph_comp_cb(msm_config_hph_compander_gpio, dig_cdc);
@@ -2444,7 +2444,7 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 		.ignore_pmdown_time = 1,
 		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA6,
 	},
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	{/* hw:x,40 */
 		.name = "Tertiary MI2S_TX Hostless",
 		.stream_name = "Tertiary MI2S_TX Hostless",
@@ -2484,7 +2484,7 @@ static struct snd_soc_dai_link msm_int_wsa_dai[] = {
 	},
 };
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 static struct snd_soc_dai_link_component tfa98xx_codecs[] = {
 	{
 		.name     = "tfa98xx.6-0034",
@@ -2835,7 +2835,7 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.stream_name = "Tertiary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.2",
 		.platform_name = "msm-pcm-routing",
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 		.codecs = tfa98xx_codecs,
 		.num_codecs = 1,
 #else
@@ -2855,7 +2855,7 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.stream_name = "Tertiary MI2S Capture",
 		.cpu_dai_name = "msm-dai-q6-mi2s.2",
 		.platform_name = "msm-pcm-routing",
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 		.codecs = tfa98xx_codecs,
 		.num_codecs = 1,
 #else
@@ -3255,7 +3255,7 @@ static int msm_internal_init(struct platform_device *pdev,
 			"%s: doesn't support external speaker pa\n",
 			__func__);
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 	ret = is_ext_hph_gpio_support(pdev, pdata);
 	if (ret < 0)
 		dev_dbg(&pdev->dev,

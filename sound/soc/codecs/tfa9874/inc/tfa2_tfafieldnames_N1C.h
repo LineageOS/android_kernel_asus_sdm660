@@ -796,7 +796,7 @@ typedef enum nxpTfa2BfEnumList {
    { 0xffff,"Unknown bitfield enum" }   /* not found */\
 };
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 #define TFA2_BITNAMETABLE static tfaBfName_t Tfa2BitNames[]= {\
    { 0x0, "powerdown"},    /* Powerdown selection                               , */\
    { 0x10, "reset"},    /* I2C Reset - Auto clear                            , */\
