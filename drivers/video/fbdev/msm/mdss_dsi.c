@@ -3200,10 +3200,8 @@ static struct device_node *mdss_dsi_pref_prim_panel(
  *
  * returns pointer to panel node on success, NULL on error.
  */
-#if defined(CONFIG_MACH_ASUS_X00TD) && defined(CONFIG_TOUCHSCREEN_NT36xxx)
+#if (defined(CONFIG_MACH_ASUS_X00TD) && defined(CONFIG_TOUCHSCREEN_NT36xxx)) || (defined(CONFIG_MACH_ASUS_X01BD) && defined(CONFIG_TOUCHSCREEN_NT36xxx_X01BD))
 int nvt_tp_check;
-#elif defined(CONFIG_MACH_ASUS_X01BD)
-int nvt_tp_check = 0;
 #endif
 static struct device_node *mdss_dsi_find_panel_of_node(
 		struct platform_device *pdev, char *panel_cfg)
@@ -3271,7 +3269,7 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		}
 		pr_info("%s: cmdline:%s panel_name:%s\n",
 			__func__, panel_cfg, panel_name);
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD) && defined(CONFIG_TOUCHSCREEN_NT36xxx)
+#if (defined(CONFIG_MACH_ASUS_X00TD) && defined(CONFIG_TOUCHSCREEN_NT36xxx)) || (defined(CONFIG_MACH_ASUS_X01BD) && defined(CONFIG_TOUCHSCREEN_NT36xxx_X01BD))
 		if (!strcmp(panel_name, "qcom,mdss_dsi_nt36672_1080p_video"))
 			nvt_tp_check = 0;
 		else if (!strcmp(panel_name,

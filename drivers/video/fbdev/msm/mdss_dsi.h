@@ -24,7 +24,7 @@
 #include "mdss_dsi_cmd.h"
 #include "mdss_dsi_clk.h"
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD) && defined(CONFIG_TOUCHSCREEN_NT36xxx)
+#if (defined(CONFIG_MACH_ASUS_X00TD) && defined(CONFIG_TOUCHSCREEN_NT36xxx)) || (defined(CONFIG_MACH_ASUS_X01BD) && defined(CONFIG_TOUCHSCREEN_NT36xxx_X01BD))
 extern int nvt_tp_check;
 #endif
 

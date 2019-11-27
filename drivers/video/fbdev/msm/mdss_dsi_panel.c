@@ -516,7 +516,9 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			"qcom,mdss_dsi_td4310_1080p_video_txd") &&
 			syna_gesture_mode == 0)
 #endif
+#ifndef CONFIG_MACH_ASUS_X01BD
 		gpio_set_value((ctrl_pdata->rst_gpio), 0);
+#endif
 #if defined(CONFIG_MACH_ASUS_X00TD) && defined(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_v27)
 		else
 			gpio_set_value((ctrl_pdata->rst_gpio), 1);
