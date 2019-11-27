@@ -663,29 +663,20 @@
 #define BTN_TRIGGER_HAPPY39		0x2e6
 #define BTN_TRIGGER_HAPPY40		0x2e7
 
-#if defined(CONFIG_MACH_ASUS_X00TD) || defined(CONFIG_MACH_ASUS_X01BD)
+#ifdef CONFIG_MACH_ASUS_SDM660
 #ifdef CONFIG_INPUT_SX9310
 #define KEY_SARSENSOR_NEAR		0x2ea
 #define KEY_SARSENSOR_FAR		0x2eb
 #endif
 
-#if defined(CONFIG_TOUCHSCREEN_NT36xxx) || defined(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_v27) ||  defined(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_X01BD)
-#define KEY_TP_GESTURE_W 	0x2ec
-#define KEY_TP_GESTURE_E 	0x2ed
-#define KEY_TP_GESTURE_S 	0x2ee
-#define KEY_TP_GESTURE_Z 	0x2ef
-#define KEY_TP_GESTURE_C 	0x2f0
-#define KEY_TP_GESTURE_V 	0x2f1
-#ifdef CONFIG_MACH_ASUS_X01BD
-#define KEY_TP_GESTURE_SWIPE_UP         0x2F6
-#define KEY_TP_GESTURE_DOUBLE_CLICK     0x2F7
-#endif
-#endif
-#endif
-
-#ifdef CONFIG_MACH_ASUS_X01BD
-#define KEY_TP_GESTURE_SWIPE_UP 	0x2F6
+#define KEY_TP_GESTURE_SWIPE_UP 		0x2F6
 #define KEY_TP_GESTURE_DOUBLE_CLICK 	0x2F7
+#define KEY_TP_GESTURE_C 				0x2F0
+#define KEY_TP_GESTURE_E 				0x2ED
+#define KEY_TP_GESTURE_S 				0x2EE
+#define KEY_TP_GESTURE_V 				0x2F1
+#define KEY_TP_GESTURE_W 			0x2EC
+#define KEY_TP_GESTURE_Z 				0x2EF
 #endif
 
 /* We avoid low common keys in module aliases so they don't get huge. */
