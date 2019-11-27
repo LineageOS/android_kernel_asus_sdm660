@@ -329,7 +329,7 @@ CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_v27=y
 CONFIG_TOUCHSCREEN_FTS_DIRECTORY=y
 CONFIG_SECURE_TOUCH=y
 #Huaqin modify for ZQL1650-137 by zhengwu.lu at 2018/01/22 start
-CONFIG_TOUCHSCREEN_NT36XXX=y
+CONFIG_TOUCHSCREEN_NT36xxx=y
 #Huaqin modify for ZQL1650-137 by zhengwu.lu at 2018/01/22 end
 CONFIG_INPUT_MISC=y
 #Huaqin modify for disable hbtp by zhengwu.lu at 2018/01/26 start
