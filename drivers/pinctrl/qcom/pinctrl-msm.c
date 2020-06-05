@@ -80,6 +80,10 @@ struct msm_pinctrl {
 	void __iomem *regs;
 };
 
+#ifdef CONFIG_MACH_ASUS_X01BD
+int g_resume_from_fp = 0;
+#endif
+
 static struct msm_pinctrl *msm_pinctrl_data;
 
 static int msm_get_groups_count(struct pinctrl_dev *pctldev)
@@ -1463,6 +1467,9 @@ static void msm_pinctrl_resume(void)
 		return;
 
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
+#ifdef CONFIG_MACH_ASUS_X01BD
+       g_resume_from_fp = 0;
+#endif
 	for_each_set_bit(i, pctrl->enabled_irqs, pctrl->chip.ngpio) {
 		g = &pctrl->soc->groups[i];
 		val = readl_relaxed(pctrl->regs + g->intr_status_reg);
@@ -1475,6 +1482,12 @@ static void msm_pinctrl_resume(void)
 				name = desc->action->name;
 
 			pr_warn("%s: %d triggered %s\n", __func__, irq, name);
+#ifdef CONFIG_MACH_ASUS_X01BD
+			if (irq == 265) {
+				pr_info("%s: fingerprint triggered resume.\n", __func__);
+				g_resume_from_fp = 1;
+			}
+#endif
 		}
 	}
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
