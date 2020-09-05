@@ -1,0 +1,25 @@
+version: 2.1
+jobs:
+  compile:
+   docker:
+      - image: ubuntu:20.04
+   steps:
+      - run:
+          command: |
+            apt-get -y update && apt-get -y upgrade && apt-get -y install ca-certificates
+      - run:
+          command: |
+            export DEBIAN_FRONTEND=noninteractive && apt-get -y update && apt-get -y upgrade && apt-get -y install tzdata bc bison ca-certificates curl gcc git jq libxml2 libtinfo5 libc6-dev libssl-dev libstdc++6 make openssl python ssh sshpass tzdata wget zip zstd python3 python3-pip
+            ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+            dpkg-reconfigure --frontend noninteractive tzdata
+            python3 -m pip  install networkx
+            git config --global user.name "ZyCromerZ"
+            git config --global user.email "neetroid97@gmail.com"
+            curl https://raw.githubusercontent.com/VISakura/myscripts/master/kernel.sh > run.sh
+            bash run.sh
+          no_output_timeout : 5h
+workflows:
+  version: 2.1
+  cooking:
+    jobs:
+      - compile
