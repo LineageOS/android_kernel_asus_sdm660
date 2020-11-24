@@ -17,3 +17,7 @@
 &cdc_pdm_gpios {
 	status = "okay";
 };
+
+&cdc_dmic_gpios {
+	status = "okay";
+};
