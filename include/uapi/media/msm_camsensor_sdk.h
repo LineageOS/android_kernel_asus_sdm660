@@ -262,6 +262,9 @@ enum msm_camera_i2c_operation {
 	MSM_CAM_READ_PAGE,
 	MSM_CAM_WRITE_DELAYUSEC,
 	MSM_CAM_READ_CONTINUOUS,
+#ifdef CONFIG_MACH_ASUS_X00TD
+	MSM_CAM_SINGLE_LOOP_READ,
+#endif
 };
 
 struct msm_sensor_i2c_sync_params {
