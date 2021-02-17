@@ -6,6 +6,19 @@
 	};
 };
 
+&pm660l_lpg {
+
+    // Green
+    lpg2 {
+        qcom,ramp-step-ms = <40>;
+    };
+    
+    // Red
+    lpg3 {
+        qcom,ramp-step-ms = <40>;
+    };
+};
+
 &pm660l_flash0 {
 	qcom,max-current = <1000>;
 	qcom,current-ma = <900>;
