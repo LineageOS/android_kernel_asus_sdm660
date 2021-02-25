@@ -20,7 +20,7 @@
 #include <linux/kthread.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/spi/spidev.h>
 #include <linux/semaphore.h>
 #include <linux/poll.h>
