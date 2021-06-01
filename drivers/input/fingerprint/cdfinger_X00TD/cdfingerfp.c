@@ -596,6 +596,7 @@ static int cdfinger_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_dev:
+	wake_lock_destroy(&cdfingerdev->cdfinger_lock);
 	misc_deregister(&st_cdfinger_dev);
 	kfree(cdfingerdev);
 	return  status;
