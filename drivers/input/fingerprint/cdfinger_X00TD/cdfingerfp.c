@@ -50,6 +50,8 @@ struct cdfinger_key_map {
 	unsigned int code;
 };
 
+#define WAKELOCK_HOLD_TIME 1000
+
 #define CDFINGER_IOCTL_MAGIC_NO				0xFB
 #define CDFINGER_INIT						_IOW(CDFINGER_IOCTL_MAGIC_NO, 0, uint8_t)
 #define CDFINGER_GETIMAGE					_IOW(CDFINGER_IOCTL_MAGIC_NO, 1, uint8_t)
@@ -318,6 +320,7 @@ static irqreturn_t cdfinger_eint_handler(int irq, void *dev_id)
 	if (pdata->irq_enable_status == 1)
 	{
 		cdfinger_wake_lock(pdata,1);
+		__pm_wakeup_event(&pdata->cdfinger_lock, WAKELOCK_HOLD_TIME);
 		cdfinger_async_report();
 	}
 	return IRQ_HANDLED;
