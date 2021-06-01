@@ -104,7 +104,6 @@ static int isInKeyMode = 0; // key mode
 static int screen_status = 1; // screen on
 static u8 cdfinger_debug = 0x01;
 static int isInit = 0;
-static char wake_flag = 0;
 #define CDFINGER_DBG(fmt, args...) \
 	do{ \
 		if(cdfinger_debug & 0x01) \
@@ -290,24 +289,6 @@ static int cdfinger_release(struct inode *inode,struct file *file)
 	return 0;
 }
 
-static void cdfinger_wake_lock(struct cdfingerfp_data *pdata,int arg)
-{
-	if(arg)
-	{
-		if(wake_flag == 0){
-			__pm_stay_awake(&pdata->cdfinger_lock);
-			wake_flag = 1;
-		}
-	}
-	else
-	{
-		if(wake_flag == 1){
-			__pm_relax(&pdata->cdfinger_lock);
-			wake_flag = 0;
-		}
-	}
-}
-
 static void cdfinger_async_report(void)
 {
 	struct cdfingerfp_data *cdfingerfp = g_cdfingerfp_data;
@@ -319,7 +300,6 @@ static irqreturn_t cdfinger_eint_handler(int irq, void *dev_id)
 	struct cdfingerfp_data *pdata = g_cdfingerfp_data;
 	if (pdata->irq_enable_status == 1)
 	{
-		cdfinger_wake_lock(pdata,1);
 		__pm_wakeup_event(&pdata->cdfinger_lock, WAKELOCK_HOLD_TIME);
 		cdfinger_async_report();
 	}
@@ -451,10 +431,6 @@ static long cdfinger_ioctl(struct file* filp, unsigned int cmd, unsigned long ar
 			misc_deregister(cdfinger->miscdev);
 			break;
 
-		case CDFINGER_WAKE_LOCK:
-			cdfinger_wake_lock(cdfinger,arg);
-			break;
-
 		case CDFINGER_POWER_ON:
 			err = cdfinger_power_on(cdfinger);
 			break;
@@ -578,6 +554,7 @@ static int cdfinger_probe(struct platform_device *pdev)
 	cdfingerdev->cdfinger_input = input_allocate_device();
 	if(!cdfingerdev->cdfinger_input){
 		CDFINGER_ERR("crate cdfinger_input faile!\n");
+		wakeup_source_trash(&cdfingerdev->cdfinger_lock);
 		goto unregister_dev;
 	}
 
@@ -588,6 +565,7 @@ static int cdfinger_probe(struct platform_device *pdev)
 	{
 	  input_free_device(cdfingerdev->cdfinger_input);
 	  cdfingerdev->cdfinger_input = NULL;
+	  wakeup_source_trash(&cdfingerdev->cdfinger_lock);
 	  goto unregister_dev;
 	}
 	cdfingerdev->notifier.notifier_call = cdfinger_fb_notifier_callback;
@@ -598,7 +576,6 @@ static int cdfinger_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_dev:
-	wakeup_source_trash(&cdfingerdev->cdfinger_lock);
 	misc_deregister(&st_cdfinger_dev);
 	kfree(cdfingerdev);
 	return  status;
