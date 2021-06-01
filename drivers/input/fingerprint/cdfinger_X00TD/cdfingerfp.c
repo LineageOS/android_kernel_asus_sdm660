@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
-#include <linux/wakelock.h>
 #include <linux/kthread.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
@@ -124,7 +123,7 @@ struct cdfingerfp_data {
 	struct regulator *vdd;
 #endif	
 	struct fasync_struct *async_queue;
-	struct wake_lock cdfinger_lock;
+	struct wakeup_source cdfinger_lock;
 	struct notifier_block notifier;
 	struct mutex buf_lock;
 	struct input_dev* cdfinger_input;
@@ -294,14 +293,14 @@ static void cdfinger_wake_lock(struct cdfingerfp_data *pdata,int arg)
 	if(arg)
 	{
 		if(wake_flag == 0){
-			wake_lock(&pdata->cdfinger_lock);
+			__pm_stay_awake(&pdata->cdfinger_lock);
 			wake_flag = 1;
 		}
 	}
 	else
 	{
 		if(wake_flag == 1){
-			wake_unlock(&pdata->cdfinger_lock);
+			__pm_relax(&pdata->cdfinger_lock);
 			wake_flag = 0;
 		}
 	}
@@ -571,7 +570,7 @@ static int cdfinger_probe(struct platform_device *pdev)
 	}
 	cdfingerdev->miscdev = &st_cdfinger_dev;
 	mutex_init(&cdfingerdev->buf_lock);
-	wake_lock_init(&cdfingerdev->cdfinger_lock, WAKE_LOCK_SUSPEND, "cdfinger wakelock");
+	wakeup_source_init(&cdfingerdev->cdfinger_lock, "cdfinger wakesrc");
 
 	cdfingerdev->cdfinger_input = input_allocate_device();
 	if(!cdfingerdev->cdfinger_input){
@@ -596,7 +595,7 @@ static int cdfinger_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_dev:
-	wake_lock_destroy(&cdfingerdev->cdfinger_lock);
+	wakeup_source_trash(&cdfingerdev->cdfinger_lock);
 	misc_deregister(&st_cdfinger_dev);
 	kfree(cdfingerdev);
 	return  status;
