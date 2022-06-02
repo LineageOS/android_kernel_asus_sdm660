@@ -8,10 +8,12 @@
 
 &i2c_4 {
 	status = "okay";
+	qcom,disable-dma;
 
 	/* Novatek device tree node */
 	novatek@62 {
 		compatible = "novatek,NVT-ts";
+		com,i2c-touch-active = "novatek, NVT-ts";
 		reg = <0x62>;
 		status = "ok";
 
@@ -22,6 +24,8 @@
 
 		novatek,reset-gpio = <&tlmm 66 0x0>;
 		novatek,irq-gpio = <&tlmm 67 0x0>;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		novatek,config-array-size = <2>;
 
 		/* MP */
 		novatek,mp-support-dt;

@@ -46,10 +46,12 @@
 
 &i2c_4{
 	status = "ok";
+	qcom,disable-dma;
 
 	/* Novatek device tree node */
 	novatek@62 {
 		compatible = "novatek,NVT-ts";
+		com,i2c-touch-active = "novatek, NVT-ts";
 		reg = <0x62>;
 		status = "ok";
 
@@ -57,6 +59,8 @@
 		avdd-supply = <&pm660l_l3>;    //VDD
 
 		novatek,irq-gpio = <&tlmm 67 0>;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		novatek,config-array-size = <2>;
 
 		lcm_lab-supply = <&lcdb_ldo_vreg>;
 		lcm_ibb-supply = <&lcdb_ncp_vreg>;
