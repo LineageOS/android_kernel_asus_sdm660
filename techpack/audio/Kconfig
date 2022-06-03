@@ -162,5 +162,8 @@ config WCD_DSP_GLINK
 	tristate "WCD_DSP_GLINK"
 config WSA_MACRO
 	tristate "WSA_MACRO"
+config SND_SOC_TFA9874
+	tristate "NXP Semiconductors TFA9874 audio amplifier"
+	depends on I2C
 
 endmenu
