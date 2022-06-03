@@ -11171,7 +11171,7 @@ int send_tfa_cal_in_band(void *buf, int cmd_size)
 	memcpy(&afe_spk_config, buf, cmd_size);
 
 	if (afe_spk_prot_prepare(port_id, 0,
-				AFE_PARAM_ID_TFADSP_RX_CFG, &afe_spk_config))
+				AFE_PARAM_ID_TFADSP_RX_CFG, &afe_spk_config, sizeof(union afe_spkr_prot_config)))
 			pr_err("%s: AFE_PARAM_ID_TFADSP_RX_CFG failed\n", __func__);
 
 	return 0;
