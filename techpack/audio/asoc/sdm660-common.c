@@ -4692,12 +4692,6 @@ int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 				goto clk_off;
 			}
 		}
-#ifdef CONFIG_MACH_ASUS_SDM660
-		if (index == TERT_MI2S) {
-		    msm_cdc_pinctrl_select_active_state(pdata->tert_mi2s_gpio_p);
-			pr_debug("daixianze %s tert_mi2s_gpio_p\n", __func__);
-		}
-#endif
 		if (pdata->mi2s_gpio_p[index])
 			msm_cdc_pinctrl_select_active_state(
 					pdata->mi2s_gpio_p[index]);
@@ -4739,12 +4733,6 @@ void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 
 	mutex_lock(&mi2s_intf_conf[index].lock);
 	if (--mi2s_intf_conf[index].ref_cnt == 0) {
-#ifdef CONFIG_MACH_ASUS_SDM660
-		if (index == TERT_MI2S) {
-			msm_cdc_pinctrl_select_sleep_state(pdata->tert_mi2s_gpio_p);
-			pr_debug("daixianze %s tert_mi2s_gpio_p \n", __func__);
-		}
-#endif
 		if (pdata->mi2s_gpio_p[index])
 			msm_cdc_pinctrl_select_sleep_state(
 					pdata->mi2s_gpio_p[index]);
