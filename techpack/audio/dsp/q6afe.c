@@ -24,6 +24,11 @@
 #include "adsp_err.h"
 #include "q6afecal-hwdep.h"
 
+#ifdef CONFIG_SND_SOC_TFA9874
+#define AFE_PARAM_ID_TFADSP_RX_CFG 	(0x1000B921)
+#define AFE_MODULE_ID_TFADSP_RX		(0x1000B911)
+#endif
+
 #define WAKELOCK_TIMEOUT	5000
 #define AFE_CLK_TOKEN	1024
 
@@ -238,6 +243,10 @@ struct afe_ctl {
 	int set_custom_topology;
 	int dev_acdb_id[AFE_MAX_PORTS];
 	routing_cb rt_cb;
+#ifdef CONFIG_SND_SOC_TFA9874
+	struct rtac_cal_block_data tfa_cal;
+	atomic_t tfa_state;
+#endif
 	struct audio_uevent_data *uevent_data;
 	/* cal info for AFE */
 	struct afe_fw_info *fw_data;
@@ -1103,6 +1112,22 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			av_dev_drift_afe_cb_handler(data->opcode, data->payload,
 						    data->payload_size);
 		} else {
+#ifdef CONFIG_SND_SOC_TFA9874
+		if (atomic_read(&this_afe.tfa_state) == 1) {
+			if (data->payload_size == sizeof(uint32_t))
+				atomic_set(&this_afe.status,
+							payload[0]);
+			else if (data->payload_size == (2 *
+						sizeof(uint32_t)))
+				atomic_set(&this_afe.status,
+							payload[1]);
+
+			atomic_set(&this_afe.tfa_state, 0);
+			wake_up(&this_afe.wait[data->token]);
+
+			return 0;
+		}
+#endif
 			if (sp_make_afe_callback(data->opcode, data->payload,
 						 data->payload_size))
 				return -EINVAL;
@@ -1154,6 +1179,25 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 				if (rtac_make_afe_callback(payload,
 							   data->payload_size))
 					return 0;
+
+#ifdef CONFIG_SND_SOC_TFA9874
+				if (atomic_read(&this_afe.tfa_state) == 1) {
+					if (data->payload_size ==
+							sizeof(uint32_t))
+						atomic_set(&this_afe.status,
+								payload[0]);
+					else if (data->payload_size ==
+							(2*sizeof(uint32_t)))
+						atomic_set(&this_afe.status,
+								payload[1]);
+
+					atomic_set(&this_afe.tfa_state, 0);
+					wake_up(&this_afe.wait[data->token]);
+
+					return 0;
+				}
+#endif
+
 			case AFE_PORT_CMD_DEVICE_STOP:
 			case AFE_PORT_CMD_DEVICE_START:
 			case AFE_PSEUDOPORT_CMD_START:
@@ -2454,6 +2498,11 @@ static int afe_spk_prot_prepare(int src_port, int dst_port, int param_id,
 	case AFE_PARAM_ID_SP_V2_EX_VI_FTM_CFG:
 		param_info.module_id = AFE_MODULE_SPEAKER_PROTECTION_V2_EX_VI;
 		break;
+#ifdef CONFIG_SND_SOC_TFA9874
+	case AFE_PARAM_ID_TFADSP_RX_CFG:
+		param_info.module_id = AFE_MODULE_ID_TFADSP_RX;
+		break;
+#endif
 	case AFE_PARAM_ID_SP_V4_VI_CHANNEL_MAP_CFG:
 	case AFE_PARAM_ID_SP_V4_VI_OP_MODE_CFG:
 	case AFE_PARAM_ID_SP_V4_VI_R0T0_CFG:
@@ -11110,6 +11159,25 @@ done:
 	return result;
 }
 
+#ifdef CONFIG_SND_SOC_TFA9874
+int send_tfa_cal_in_band(void *buf, int cmd_size)
+{
+	union afe_spkr_prot_config afe_spk_config;
+	int32_t port_id = AFE_PORT_ID_TERTIARY_MI2S_RX;
+
+	if (cmd_size > sizeof(afe_spk_config))
+		return -1;
+
+	memcpy(&afe_spk_config, buf, cmd_size);
+
+	if (afe_spk_prot_prepare(port_id, 0,
+				AFE_PARAM_ID_TFADSP_RX_CFG, &afe_spk_config))
+			pr_err("%s: AFE_PARAM_ID_TFADSP_RX_CFG failed\n", __func__);
+
+	return 0;
+}
+#endif
+
 static void afe_release_uevent_data(struct kobject *kobj)
 {
 	struct audio_uevent_data *data = container_of(kobj,
@@ -11195,6 +11263,10 @@ void afe_exit(void)
 	}
 
 	q6core_destroy_uevent_data(this_afe.uevent_data);
+
+#ifdef CONFIG_SND_SOC_TFA9874
+	afe_unmap_rtac_block(&this_afe.tfa_cal.map_data.map_handle);
+#endif
 
 	afe_delete_cal_data();
 
