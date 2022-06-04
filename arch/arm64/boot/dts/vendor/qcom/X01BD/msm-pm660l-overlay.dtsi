@@ -6,28 +6,6 @@
 	};
 };
 
-&pm660l_pwm_3 {
-	/delete-node/ qcom,lpg;
-};
-
-&red_led {
-	qcom,idx-len = <2>;
-	qcom,lut-flags = <19>;
-	qcom,pause-lo = <3400>;
-	qcom,ramp-step-ms = <300>;
-	qcom,duty-pcts = [00 22];
-};
-
-&green_led {
-	qcom,start-idx = <0>;
-	qcom,idx-len = <2>;
-	qcom,lut-flags = <19>;
-	qcom,pause-lo = <1400>;
-	qcom,ramp-step-ms = <300>;
-	qcom,duty-pcts = [00 40];
-	qcom,use-blink;
-};
-
 &pm660l_wled {
 	qcom,fs-curr-ua = <20000>;
 };

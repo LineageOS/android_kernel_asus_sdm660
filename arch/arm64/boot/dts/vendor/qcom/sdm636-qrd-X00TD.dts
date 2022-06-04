@@ -77,7 +77,7 @@
 };
 
 &pm660l_wled {
-	qcom,led-strings-list = [00 01];
+	qcom,string-cfg = <3>;
 };
 
 &dsi_nt36672_1080p_video_txd {
