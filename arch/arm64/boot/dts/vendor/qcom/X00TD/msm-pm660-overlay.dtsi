@@ -13,60 +13,17 @@
 	};
 };
 
-&pm660_gpios {
-	asus_adapter_id {
-		asus_adapter_id_default: asus_adapter_id_default {
-			pins = "gpio3";
-			function = "normal";
-			/* Input No pull */
-			input-enable;
-			bias-disable;
-		};
-	};
-
-	asus_usb_alert {
-		asus_usb_alert_default: asus_usb_alert_default {
-			pins = "gpio12";
-			function = "normal";
-		};
-	};
-};
-
 &pm660_vadc {
-	chg-alert {
-		label = "chg-alert";
-		reg = <VADC_P_MUX10_1_1>;
-		qcom,pre-scaling = <1 1>;
-		qcom,hw-settle-time = <200>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&asus_usb_alert_default>;
-	};
-
 	pa_therm0 {
 		qcom,hw-settle-time = <10>; /* 10 ms */
-	};
-
-	gpio3_adc {
-		label = "gpio3_adc";
-		reg = <ADC_GPIO2>;
-		qcom,decimation = <1024>;
-		qcom,pre-scaling = <1 1>;
-		qcom,hw-settle-time = <200>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&asus_adapter_id_default>;
 	};
 };
 
 &pm660_charger {
-	qcom,chg-alert-vadc = <&pm660_vadc>;
-
 	qcom,micro-usb;
-	qcom,fcc-max-ua = <1000000>;
 	qcom,fv-max-uv = <4350000>;
-	qcom,usb-icl-ua = <1000000>;
 	qcom,float-option = <1>;
 	qcom,auto-recharge-soc;
-	qcom,pm-gpio3-vadc = <&pm660_vadc>;	
 };
 
 &pm660_pdphy {
