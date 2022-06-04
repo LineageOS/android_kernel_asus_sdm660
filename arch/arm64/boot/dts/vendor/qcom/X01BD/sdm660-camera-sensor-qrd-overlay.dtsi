@@ -96,7 +96,8 @@
 		qcom,cam-vreg-max-voltage = <1950000 0 1350000>;
 		qcom,cam-vreg-op-mode = <105000 0 105000>;
 		pinctrl-0 = <&cam_sensor_mclk1_active
-				 &cam_sensor_front_active>;
+				&cam_sensor_front_active
+				&cam_sensor_eldo3_default>;
 		pinctrl-1 = <&cam_sensor_mclk1_suspend
 				 &cam_sensor_front_suspend>;
 		gpios = <&tlmm 33 0>,
@@ -223,7 +224,8 @@
 		qcom,cam-vreg-max-voltage = <1950000 0 1350000>;
 		qcom,cam-vreg-op-mode = <105000 0 105000>;
 		pinctrl-0 = <&cam_sensor_mclk1_active
-				 &cam_sensor_front_active>;
+				&cam_sensor_front_active
+				&cam_sensor_eldo3_default>;
 		pinctrl-1 = <&cam_sensor_mclk1_suspend
 				 &cam_sensor_front_suspend>;
 		gpios = <&tlmm 33 0>,
@@ -247,8 +249,9 @@
 		qcom,cam-vreg-min-voltage = <1780000 0 1224000>;
 		pinctrl-0 = <&cam_sensor_mclk3_active
 				 &cam_sensor_rear2_active
-			           &mipi_switch_sel_active
-				      &mipi_switch_oe_active>;
+				 &cam_sensor_eldo4_default
+			         &mipi_switch_sel_active
+				 &mipi_switch_oe_active>;
 		pinctrl-1 = <&cam_sensor_mclk3_suspend
 				 &cam_sensor_rear2_suspend
 				    &mipi_switch_sel_suspend
