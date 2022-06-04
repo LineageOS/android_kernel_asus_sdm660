@@ -26,7 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include <asm-generic/errno-base.h>
-#include <linux/qpnp/qpnp-adc.h>
+#include <linux/iio/consumer.h>
 #endif
 
 #define SMB2_DEFAULT_WPWR_UW	8000000
@@ -2695,24 +2695,27 @@ static void remove_proc_charger_limit(void)
 
 int32_t get_ID_vadc_voltage(void)
 {
-	struct qpnp_vadc_chip *vadc_dev;
-	struct qpnp_vadc_result adc_result;
+	struct iio_channel *vadc_chan;
 	int32_t adc;
 
-	vadc_dev = qpnp_get_vadc(smbchg_dev->dev, "pm-gpio3");
-	if (IS_ERR(vadc_dev)) {
-		pr_debug("%s: qpnp_get_vadc failed\n", __func__);
+	int vadc, rc;
+	vadc_chan = iio_channel_get(smbchg_dev->dev, "pm-gpio3");
+	if (IS_ERR(vadc_chan)) {
+		pr_err("%s: Cannot get pm-gpio3 channel \n", __func__);
 		return -1;
 	} else {
-		/* Read the GPIO2 VADC channel with 1:1 scaling */
-		qpnp_vadc_read(vadc_dev, VADC_AMUX2_GPIO, &adc_result);
-		adc = (int) adc_result.physical;
+		//qpnp_vadc_read(vadc_dev, VADC_AMUX2_GPIO, &adc_result); //Read the GPIO2 VADC channel with 1:1 scaling
+		rc = iio_read_channel_processed(vadc_chan, &vadc);
+		if (rc < 0) {
+			pr_err("%s: Cannot read channel, rc = %d\n", __func__, rc);
+			return rc;
+		}
+		//adc = (int) adc_result.physical;
 
 		/* uV to mV */
 		adc = adc / 1000;
 
-		pr_debug("%s: adc=%d adc_result.physical=%lld adc_result.chan=0x%x\n",
-			__func__, adc,adc_result.physical,adc_result.chan);
+		pr_info("%s: adc=%d", __func__, adc);
 	}
 
 	return adc;

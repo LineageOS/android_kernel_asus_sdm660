@@ -17,7 +17,7 @@
 #include "step-chg-jeita.h"
 #include "storm-watch.h"
 #ifdef CONFIG_MACH_ASUS_SDM660
-#include <linux/qpnp/qpnp-adc.h>
+#include <linux/iio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/fs.h>
 #include <linux/alarmtimer.h>
@@ -3984,26 +3984,28 @@ static int jeita_status_regs_write(u8 chg_en, u8 FV_CFG, u8 FCC)
 void asus_update_usb_connector_state(struct smb_charger *chip)
 {
 	int64_t  phy_volta = 0;
-	struct qpnp_vadc_result usb_vadc_result;
-	int rc;
+	int usb_vadc_result, rc;
 
-	chip->gpio12_vadc_dev = qpnp_get_vadc(chip->dev, "chg-alert");
+	chip->gpio12_vadc_chan=iio_channel_get(chip->dev,"chg-alert");
 
-	if (IS_ERR(chip->gpio12_vadc_dev)) {
+	if(IS_ERR(chip->gpio12_vadc_chan)){
 		pr_err(" Error get chg_alert vadc rc = %d \n", rc);
-		rc = PTR_ERR(chip->gpio12_vadc_dev);
+		rc = PTR_ERR(chip->gpio12_vadc_chan);
 		if(rc != -EPROBE_DEFER)
 			pr_err(" Couldn't get chg_alert vadc rc = %d \n", rc);
 		return;
 	}
 
-	if(chip->gpio12_vadc_dev) {
-		qpnp_vadc_read(chip->gpio12_vadc_dev, VADC_AMUX8_GPIO,
-				&usb_vadc_result);
-		phy_volta=usb_vadc_result.physical;
+	if(chip->gpio12_vadc_chan){
+		rc = iio_read_channel_processed(chip->gpio12_vadc_chan, &usb_vadc_result);
+		if(rc < 0) {
+			pr_err("%s: Cannot read channel chg-alert \n", __func__);
+			return;
+		}
+		phy_volta=usb_vadc_result;
 		pr_debug("qpnp_vadc_read: phy_volta = %lld\n", phy_volta);
 	} else {
-		pr_debug("NONE gpio12_vadc_dev \n");
+		pr_debug("NONE gpio12_vadc_chan \n");
 		return;
 	}
 }

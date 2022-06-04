@@ -315,7 +315,7 @@ struct smb_charger {
 	struct delayed_work	asus_adapter_adc_work;
 	struct delayed_work	asus_min_monitor_work;
 	struct delayed_work	asus_batt_RTC_work;
-	struct qpnp_vadc_chip	*gpio12_vadc_dev;
+	struct iio_channel	*gpio12_vadc_chan;
 #endif
 
 	/* cached status */
