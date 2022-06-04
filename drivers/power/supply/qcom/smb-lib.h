@@ -443,12 +443,6 @@ irqreturn_t smblib_handle_wdog_bark(int irq, void *data);
 
 int smblib_get_prop_input_suspend(struct smb_charger *chg,
 				union power_supply_propval *val);
-#ifdef CONFIG_MACH_ASUS_SDM660
-int smblib_get_prop_charging_enabled(struct smb_charger *chg,
-				union power_supply_propval *val);
-int smblib_get_prop_adapter_id(struct smb_charger *chg,
-				union power_supply_propval *val);
-#endif
 int smblib_get_prop_batt_present(struct smb_charger *chg,
 				union power_supply_propval *val);
 int smblib_get_prop_batt_capacity(struct smb_charger *chg,
@@ -469,10 +463,6 @@ int smblib_get_prop_input_current_limited(struct smb_charger *chg,
 				union power_supply_propval *val);
 int smblib_set_prop_input_suspend(struct smb_charger *chg,
 				const union power_supply_propval *val);
-#ifdef CONFIG_MACH_ASUS_SDM660
-int smblib_set_prop_charging_enabled(struct smb_charger *chg,
-				const union power_supply_propval *val);
-#endif
 int smblib_set_prop_batt_capacity(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_set_prop_batt_status(struct smb_charger *chg,
