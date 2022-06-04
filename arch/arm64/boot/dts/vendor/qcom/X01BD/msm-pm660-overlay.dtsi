@@ -22,11 +22,6 @@
 		qcom,src-sel = <0>; /* Constant */
 		qcom,master-en = <0>; /* Eanble GPIO */
 	};
-
-	gpio@cb00 {
-		status = "ok";
-		qcom,master-en = <0>;
-	};
 };
 
 &pm660_vadc {

@@ -14,20 +14,21 @@
 };
 
 &pm660_gpios {
-	gpio@c200 {
-		status = "okay";
-		qcom,mode = <3>; /* Analog Pass Through */
-		qcom,pull = <5>; /* Input No pull */
-		qcom,vin-sel = <0>; /* VIN0 */
-		qcom,src-sel = <0>; /* Constant */
-		qcom,master-en = <0>; /* Eanble GPIO */
+	asus_adapter_id {
+		asus_adapter_id_default: asus_adapter_id_default {
+			pins = "gpio3";
+			function = "normal";
+			/* Input No pull */
+			input-enable;
+			bias-disable;
+		};
 	};
-};
 
-&pm660_gpios {
-	gpio@cb00 {
-		status = "ok";
-		qcom,master-en = <0>;
+	asus_usb_alert {
+		asus_usb_alert_default: asus_usb_alert_default {
+			pins = "gpio12";
+			function = "normal";
+		};
 	};
 };
 
@@ -37,6 +38,8 @@
 		reg = <VADC_P_MUX10_1_1>;
 		qcom,pre-scaling = <1 1>;
 		qcom,hw-settle-time = <200>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&asus_usb_alert_default>;
 	};
 
 	pa_therm0 {
@@ -49,6 +52,8 @@
 		qcom,decimation = <1024>;
 		qcom,pre-scaling = <1 1>;
 		qcom,hw-settle-time = <200>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&asus_adapter_id_default>;
 	};
 };
 
