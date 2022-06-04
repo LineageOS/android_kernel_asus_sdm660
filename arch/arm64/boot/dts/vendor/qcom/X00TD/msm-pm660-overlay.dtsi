@@ -32,38 +32,23 @@
 };
 
 &pm660_vadc {
-	chan@19 {
+	chg-alert {
 		label = "chg-alert";
-		reg = <0x19>;
-		qcom,decimation = <0>;
-		qcom,pre-div-channel-scaling = <0>;
-		qcom,calibration-type = "absolute";
-		qcom,scale-function = <0>;
-		qcom,hw-settle-time = <2>;
-		qcom,fast-avg-setup = <0>;
+		reg = <VADC_P_MUX10_1_1>;
+		qcom,pre-scaling = <1 1>;
+		qcom,hw-settle-time = <200>;
 	};
 
-	chan@4f {
-		label = "pa_therm0";
-		reg = <0x4f>;
-		qcom,decimation = <2>;
-		qcom,pre-div-channel-scaling = <0>;
-		qcom,calibration-type = "ratiometric";
-		qcom,scale-function = <2>;
-		qcom,hw-settle-time = <0xf>;
-		qcom,fast-avg-setup = <0>;
-		qcom,vadc-thermal-node;
+	pa_therm0 {
+		qcom,hw-settle-time = <10>; /* 10 ms */
 	};
 
-	chan@13 {
+	gpio3_adc {
 		label = "gpio3_adc";
-		reg = <0x13>;
-		qcom,decimation = <2>;
-		qcom,pre-div-channel-scaling = <0>;
-		qcom,calibration-type = "absolute";
-		qcom,scale-function = <0>;
-		qcom,hw-settle-time = <2>;
-		qcom,fast-avg-setup = <0>;
+		reg = <ADC_GPIO2>;
+		qcom,decimation = <1024>;
+		qcom,pre-scaling = <1 1>;
+		qcom,hw-settle-time = <200>;
 	};
 };
 
