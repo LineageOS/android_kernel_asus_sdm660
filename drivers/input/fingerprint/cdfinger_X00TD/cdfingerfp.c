@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
-#include <linux/wakelock.h>
 #include <linux/kthread.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
@@ -54,6 +53,9 @@ struct cdfinger_key_map {
 	unsigned int type;
 	unsigned int code;
 };
+
+#define CDFINGER_HOLD_TIME 1000
+
 /* Huaqin modify for TT1240582 by puqirui at 2018/09/21 satrt */
 #define CDFINGER_IOCTL_MAGIC_NO          0xFB
 #define CDFINGER_INIT                    _IOW(CDFINGER_IOCTL_MAGIC_NO, 0, uint8_t)
@@ -103,7 +105,6 @@ static int isInKeyMode = 0; // key mode
 static int irq_flag = 0;
 static int screen_status = 1; // screen on
 static u8 cdfinger_debug = 0x01;
-static char wake_flag = 0;
 #define CDFINGER_DBG(fmt, args...) \
 	do{ \
 		if(cdfinger_debug & 0x01) \
@@ -132,7 +133,7 @@ struct cdfingerfp_data {
 	u32 reset_num;
 	u32 pwr_num;
 	struct fasync_struct *async_queue;
-	struct wake_lock cdfinger_lock;
+	struct wakeup_source cdfinger_lock;
 	struct input_dev* cdfinger_input;
 	struct notifier_block notifier;
 	struct mutex buf_lock;
@@ -380,23 +381,6 @@ static int cdfinger_release(struct inode *inode,struct file *file)
 	return 0;
 }
 
-static void cdfinger_wake_lock(struct cdfingerfp_data *pdata,int arg)
-{
-	if(arg)
-	{
-		if(wake_flag == 0){
-			wake_lock(&pdata->cdfinger_lock);
-			wake_flag = 1;
-		}
-	}
-	else
-	{
-		if(wake_flag == 1){
-			wake_unlock(&pdata->cdfinger_lock);
-			wake_flag = 0;
-		}
-	}
-}
 static void cdfinger_async_report(void)
 {
 	struct cdfingerfp_data *cdfingerfp = g_cdfingerfp_data;
@@ -417,7 +401,7 @@ static irqreturn_t cdfinger_eint_handler(int irq, void *dev_id)
 	if (pdata->irq_enable_status == 1)
 	{
 		fp_cpuboost();
-		cdfinger_wake_lock(pdata,1);
+		__pm_wakeup_event(&pdata->cdfinger_lock, CDFINGER_HOLD_TIME);
 		cdfinger_async_report();
 	}
 	return IRQ_HANDLED;
@@ -563,9 +547,6 @@ static long cdfinger_ioctl(struct file* filp, unsigned int cmd, unsigned long ar
 			err = cdfinger_eint_gpio_init(cdfinger);
 			cdfinger_debug = 0x00;
 			break;
-		case CDFINGER_WAKE_LOCK:
-			cdfinger_wake_lock(cdfinger,arg);
-			break;
 		case CDFINGER_RELEASE_DEVICE:
 			cdfinger_free_gpio(cdfinger);
 			if (cdfinger->cdfinger_input != NULL) {
@@ -678,7 +659,7 @@ static int cdfinger_probe(struct platform_device *pdev)
 	cdfingerdev->miscdev = &st_cdfinger_dev;
 	cdfingerdev->cdfinger_dev = pdev;
 	mutex_init(&cdfingerdev->buf_lock);
-	wake_lock_init(&cdfingerdev->cdfinger_lock, WAKE_LOCK_SUSPEND, "cdfinger wakelock");
+	wakeup_source_init(&cdfingerdev->cdfinger_lock, "cdfinger wakesrc");
 	status=cdfinger_parse_dts(&cdfingerdev->cdfinger_dev->dev, cdfingerdev);
 	if (status != 0) {
 		CDFINGER_DBG("cdfinger parse err %d\n",status);
