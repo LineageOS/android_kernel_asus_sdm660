@@ -15,8 +15,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
-#include <linux/sched.h>
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 #include <linux/kthread.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
@@ -51,7 +50,6 @@ struct cdfinger_key_map {
 	unsigned int type;
 	unsigned int code;
 };
-/* Huaqin modify for TT1240582 by puqirui at 2018/09/21 satrt */
 #define CDFINGER_IOCTL_MAGIC_NO          0xFB
 #define CDFINGER_INIT                    _IOW(CDFINGER_IOCTL_MAGIC_NO, 0, uint8_t)
 #define CDFINGER_GETIMAGE                _IOW(CDFINGER_IOCTL_MAGIC_NO, 1, uint8_t)
@@ -118,7 +116,7 @@ struct cdfingerfp_data {
 	u32 reset_num;
 	u32 pwr_num;
 	struct fasync_struct *async_queue;
-	struct wake_lock cdfinger_lock;
+	struct wakeup_source *cdfinger_lock;
 	struct input_dev* cdfinger_input;
 	struct notifier_block notifier;
 	struct mutex buf_lock;
@@ -324,14 +322,14 @@ static void cdfinger_wake_lock(struct cdfingerfp_data *pdata,int arg)
 	if(arg)
 	{
 		if(wake_flag == 0){
-			wake_lock(&pdata->cdfinger_lock);
+			__pm_stay_awake(pdata->cdfinger_lock);
 			wake_flag = 1;
 		}
 	}
 	else
 	{
 		if(wake_flag == 1){
-			wake_unlock(&pdata->cdfinger_lock);
+			__pm_relax(pdata->cdfinger_lock);
 			wake_flag = 0;
 		}
 	}
@@ -613,13 +611,13 @@ static int cdfinger_probe(struct platform_device *pdev)
 	cdfingerdev->miscdev = &st_cdfinger_dev;
 	cdfingerdev->cdfinger_dev = pdev;
 	mutex_init(&cdfingerdev->buf_lock);
-	wake_lock_init(&cdfingerdev->cdfinger_lock, WAKE_LOCK_SUSPEND, "cdfinger wakelock");
+	cdfingerdev->cdfinger_lock = wakeup_source_register(NULL, "cdfinger wakelock");
 	status=cdfinger_parse_dts(&cdfingerdev->cdfinger_dev->dev, cdfingerdev);
 	if (status != 0) {
 		CDFINGER_DBG("cdfinger parse err %d\n",status);
 		goto unregister_dev;	
 	}
-	
+
 	cdfingerdev->cdfinger_input = input_allocate_device();
 	if(!cdfingerdev->cdfinger_input){
 		CDFINGER_ERR("crate cdfinger_input faile!\n");

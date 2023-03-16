@@ -40,7 +40,6 @@
 #include <linux/fb.h>
 #include <linux/pm_qos.h>
 #include <linux/cpufreq.h>
-#include <linux/wakelock.h>
 #include "gf_spi.h"
 
 #include "../common_X00TD/fingerprint_common.h"
@@ -56,7 +55,7 @@
 #define VER_MINOR   2
 #define PATCH_LEVEL 1
 
-#define WAKELOCK_HOLD_TIME 500 /* in ms */
+#define GOODIXFP_HOLD_TIME 500 /* in ms */
 
 #define GF_SPIDEV_NAME     "goodix,fingerprint"
 /*device name after register in charater*/
@@ -72,7 +71,7 @@ static int SPIDEV_MAJOR;
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 static LIST_HEAD(device_list);
 static DEFINE_MUTEX(device_list_lock);
-static struct wake_lock fp_wakelock;
+static struct wakeup_source *goodix_lock;
 static struct gf_dev gf;
 
 struct gf_key_map maps[] = {
@@ -493,7 +492,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
 {
 #if defined(GF_NETLINK_ENABLE)
 	char temp = GF_NET_EVENT_IRQ;
-	wake_lock_timeout(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
+	__pm_wakeup_event(goodix_lock, GOODIXFP_HOLD_TIME);
 	sendnlmsg(&temp);
 #elif defined (GF_FASYNC)
 	struct gf_dev *gf_dev = &gf;
@@ -752,7 +751,7 @@ static int gf_probe(struct platform_device *pdev)
 #ifndef USE_COMMON_FP
 	gf_dev->irq = gf_irq_num(gf_dev);
 #endif
-	wake_lock_init(&fp_wakelock, WAKE_LOCK_SUSPEND, "fp_wakelock");
+	goodix_lock = wakeup_source_register(NULL, "goodix_lock");
 
 
 	pr_info("version V%d.%d.%02d\n", VER_MAJOR, VER_MINOR, PATCH_LEVEL);
@@ -792,7 +791,7 @@ static int gf_remove(struct platform_device *pdev)
 {
 	struct gf_dev *gf_dev = &gf;
 
-	wake_lock_destroy(&fp_wakelock);
+	wakeup_source_unregister(goodix_lock);
 	/* make sure ops on existing fds can abort cleanly */
 	if (gf_dev->irq)
 		free_irq(gf_dev->irq, gf_dev);

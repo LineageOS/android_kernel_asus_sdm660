@@ -40,7 +40,7 @@
 #include <linux/sched.h>
 #include <uapi/linux/sched/types.h>
 #ifdef CONFIG_MACH_ASUS_SDM660
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 #endif
 #include "mdss_fb.h"
 #include "mdss_mdp_splash_logo.h"
@@ -84,7 +84,7 @@ extern int focal_detect_flag;
 #endif
 
 #ifdef CONFIG_MACH_ASUS_X00TD
-static struct wake_lock early_unblank_wakelock;
+static struct wakeup_source *early_unblank_wakelock;
 #endif
 extern bool lcd_suspend_flag;
 static void asus_lcd_early_unblank_func(struct work_struct *);
@@ -105,7 +105,7 @@ static u32 mdss_fb_pseudo_palette[16] = {
 static struct msm_mdp_interface *mdp_instance;
 
 #ifdef CONFIG_MACH_ASUS_X01BD
-static struct wake_lock early_unblank_wakelock;
+static struct wakeup_source *early_unblank_wakelock;
 #endif
 
 static int mdss_fb_register(struct msm_fb_data_type *mfd);
@@ -1694,7 +1694,7 @@ static void asus_lcd_early_unblank_func(struct work_struct *work)
 	if (!fbi)
 		return;
 
-	wake_lock_timeout(&early_unblank_wakelock,msecs_to_jiffies(300));
+	__pm_wakeup_event(early_unblank_wakelock,msecs_to_jiffies(300));
 	fb_blank(fbi, FB_BLANK_UNBLANK);
 	lcd_suspend_flag = false;
 	mfd->early_unblank_work_queued = false;
@@ -5360,8 +5360,7 @@ int __init mdss_fb_init(void)
 
 #ifdef CONFIG_MACH_ASUS_SDM660
 	asus_lcd_early_unblank_wq = create_singlethread_workqueue("display_early_wq");
-	wake_lock_init(&early_unblank_wakelock, WAKE_LOCK_SUSPEND,
-			"early_unblank-update");
+	early_unblank_wakelock = wakeup_source_register(NULL, "early_unblank-update");
 #endif
 	return 0;
 }

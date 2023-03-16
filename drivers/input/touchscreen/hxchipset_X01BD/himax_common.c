@@ -2648,7 +2648,7 @@ FW_force_upgrade:
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 end */
 #ifdef HX_SMART_WAKEUP
 	ts->SMWP_enable = 0;
-	wake_lock_init(&ts->ts_SMWP_wake_lock, WAKE_LOCK_SUSPEND, HIMAX_common_NAME);
+	wakeup_source_register(&ts->ts_SMWP_wake_lock, HIMAX_common_NAME);
 #endif
 #ifdef HX_HIGH_SENSE
 	ts->HSEN_enable = 0;
@@ -2697,7 +2697,7 @@ err_register_interrupt_failed:
 err_creat_proc_file_failed:
 err_report_data_init_failed:
 #ifdef HX_SMART_WAKEUP
-	wake_lock_destroy(&ts->ts_SMWP_wake_lock);
+	wakeup_source_unregister(&ts->ts_SMWP_wake_lock);
 #endif
 #ifdef CONFIG_FB
 	cancel_delayed_work_sync(&ts->work_att);
@@ -2765,7 +2765,7 @@ void himax_chip_common_deinit(void)
 	}
 
 #ifdef HX_SMART_WAKEUP
-	wake_lock_destroy(&ts->ts_SMWP_wake_lock);
+	wakeup_source_unregister(&ts->ts_SMWP_wake_lock);
 #endif
 #ifdef CONFIG_FB
 	if (fb_unregister_client(&ts->fb_notif))

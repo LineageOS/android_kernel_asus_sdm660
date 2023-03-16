@@ -22,9 +22,8 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/input/mt.h>
-#include <linux/wakelock.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 /* Huaqin add for TT 1242335 zhangxiude at 2018/9/30 start */
@@ -980,7 +979,7 @@ int nvt_test_node_init(struct platform_device *tpinfo_device)
 /* function page definition */
 #define FUNCPAGE_GESTURE         1
 
-static struct wake_lock gestrue_wakelock;
+static struct wakeup_source gestrue_wakelock;
 
 /*******************************************************
 Description:
@@ -1364,7 +1363,7 @@ static irqreturn_t nvt_ts_irq_handler(int32_t irq, void *dev_id)
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
-		wake_lock_timeout(&gestrue_wakelock, msecs_to_jiffies(5000));
+		__pm_wakeup_event(&gestrue_wakelock, 5000);
 	}
 #endif
 
@@ -1671,7 +1670,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	for (retry = 0; retry < (sizeof(gesture_key_array) / sizeof(gesture_key_array[0])); retry++) {
 		input_set_capability(ts->input_dev, EV_KEY, gesture_key_array[retry]);
 	}
-	wake_lock_init(&gestrue_wakelock, WAKE_LOCK_SUSPEND, "poll-wake-lock");
+	wakeup_source_register(&gestrue_wakelock, "poll-wake-lock");
 #endif
 
 	sprintf(ts->phys, "input/ts");

@@ -33,7 +33,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/errno.h>
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/fs.h>
@@ -418,12 +418,12 @@ struct stk3x1x_data {
 	int32_t ps_distance_last;
 	bool ps_enabled;
 	bool re_enable_ps;
-	struct wake_lock ps_wakelock;
+	struct wakeup_source *ps_wakelock;
 #ifdef STK_POLL_PS
 	struct hrtimer ps_timer;
 	struct work_struct stk_ps_work;
 	struct workqueue_struct *stk_ps_wq;
-	struct wake_lock ps_nosuspend_wl;
+	struct wakeup_source *ps_nosuspend_wl;
 #endif
 	struct input_dev *als_input_dev;
 	int32_t als_lux_last;
@@ -1071,7 +1071,7 @@ static void stk_ps_report(struct stk3x1x_data *ps_data, int nf)
 	input_event(ps_data->ps_input_dev, EV_SYN, SYN_REPORT,0);
 #endif
 	input_sync(ps_data->ps_input_dev);
-	wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
+	__pm_wakeup_event(ps_data->ps_wakelock, 3*HZ);
 }
 
 static void stk_als_report(struct stk3x1x_data *ps_data, int als)
@@ -1684,7 +1684,7 @@ static void stk_als_ir_get_corr(struct stk3x1x_data *ps_data, int32_t als)
 	if(ps_data->ir_code)
 	{
 		ps_data->als_correct_factor = 1000;
-		if(als < STK_IRC_MAX_ALS_CODE && als > STK_IRC_MIN_ALS_CODE && 
+		if(als < STK_IRC_MAX_ALS_CODE && als > STK_IRC_MIN_ALS_CODE &&
 			ps_data->ir_code > STK_IRC_MIN_IR_CODE)
 		{
 			als_comperator = als * STK_IRC_ALS_NUMERA / STK_IRC_ALS_DENOMI;
@@ -2292,7 +2292,7 @@ static ssize_t stk_ges_enable_store(struct device *dev, struct device_attribute 
 	ret = kstrtoul(buf, 10, &value);
 	if(ret < 0)
 	{
-		printk(KERN_ERR "%s:kstrtoul failed, ret=%d\n", __func__, ret);	
+		printk(KERN_ERR "%s:kstrtoul failed, ret=%d\n", __func__, ret);
 		return ret;
 	}
 	printk(KERN_INFO "%s: Enable GES : %d\n", __func__, (int)value);
@@ -2319,7 +2319,7 @@ static ssize_t stk_ges_enable_store(struct device *dev, struct device_attribute 
 		break;
 	default:
 		printk(KERN_ERR "%s, invalid value %d\n", __func__, *buf);
-		return -EINVAL;	
+		return -EINVAL;
 		break;
 	}
 
@@ -2687,7 +2687,7 @@ static ssize_t stk_all_reg_show(struct device *dev, struct device_attribute *att
 		printk( KERN_ERR "%s fail, ret=%d", __func__, ps_reg[cnt]);
 		return -EINVAL;
 	}
-	printk( KERN_INFO "reg[0x%x]=0x%2X\n", STK_PDT_ID_REG, ps_reg[cnt]);	
+	printk( KERN_INFO "reg[0x%x]=0x%2X\n", STK_PDT_ID_REG, ps_reg[cnt]);
 
 	cnt++;
 	ps_reg[cnt] = stk3x1x_i2c_smbus_read_byte_data(ps_data->client, STK_RSRVD_REG);
@@ -2702,10 +2702,10 @@ static ssize_t stk_all_reg_show(struct device *dev, struct device_attribute *att
 	ps_reg[cnt] = stk3x1x_i2c_smbus_read_byte_data(ps_data->client, 0xE0);
 	if(ps_reg[cnt] < 0)
 	{
-		printk( KERN_ERR "%s fail, ret=%d", __func__, ps_reg[cnt]);	
+		printk( KERN_ERR "%s fail, ret=%d", __func__, ps_reg[cnt]);
 		return -EINVAL;
 	}
-	printk(KERN_INFO "reg[0xE0]=0x%2X\n", ps_reg[cnt]);	
+	printk(KERN_INFO "reg[0xE0]=0x%2X\n", ps_reg[cnt]);
 	len += scnprintf(buf+len, PAGE_SIZE-len, "[3E]%2X,[3F]%2X,[E0]%2X\n", ps_reg[cnt-2], ps_reg[cnt-1], ps_reg[cnt]);
 	return len;
 /*
@@ -2737,7 +2737,7 @@ static ssize_t stk_status_show(struct device *dev, struct device_attribute *attr
 	ps_reg[cnt] = stk3x1x_i2c_smbus_read_byte_data(ps_data->client, STK_PDT_ID_REG);
 	if(ps_reg[cnt] < 0)
 	{
-		printk( KERN_ERR "%s fail, ret=%d", __func__, ps_reg[cnt]);	
+		printk( KERN_ERR "%s fail, ret=%d", __func__, ps_reg[cnt]);
 		return -EINVAL;
 	}
 	printk( KERN_INFO "reg[0x%x]=0x%2X\n", STK_PDT_ID_REG, ps_reg[cnt]);
@@ -2932,14 +2932,14 @@ static struct attribute *stk_als_attrs [] =
 	&als_ir_code_attribute.attr,
 #ifdef STK_ALS_FIR
 	&als_firlen_attribute.attr,
-#endif	
+#endif
 	NULL
 };
 
 static struct attribute_group stk_als_attribute_group = {
 #ifndef QUALCOMM_PLATFORM
 	.name = "driver",
-#endif	
+#endif
 	.attrs = stk_als_attrs,
 };
 
@@ -2960,7 +2960,7 @@ static struct attribute *stk_ges_attrs [] =
 	NULL
 };
 
-static struct attribute_group stk_ges_attribute_group = 
+static struct attribute_group stk_ges_attribute_group =
 {
 	.name = "driver",
 	.attrs = stk_ges_attrs,
@@ -2994,7 +2994,7 @@ static struct attribute *stk_ps_attrs [] =
 	&ps_offset_attribute.attr,
 	&ps_code_attribute.attr,
 	&ps_code_thd_l_attribute.attr,
-	&ps_code_thd_h_attribute.attr,	
+	&ps_code_thd_h_attribute.attr,
 	&ps_recv_attribute.attr,
 	&ps_send_attribute.attr,
 	&all_reg_attribute.attr,
@@ -4162,7 +4162,7 @@ static int stk3x1x_suspend(struct device *dev)
 	if(ps_data->ps_enabled)
 	{
 #ifdef STK_POLL_PS
-		wake_lock(&ps_data->ps_nosuspend_wl);
+		__pm_stay_awake(ps_data->ps_nosuspend_wl);
 #else
 		if(device_may_wakeup(&client->dev))
 		{
@@ -4232,7 +4232,7 @@ static int stk3x1x_resume(struct device *dev)
 	if(ps_data->ps_enabled)
 	{
 #ifdef STK_POLL_PS
-		wake_unlock(&ps_data->ps_nosuspend_wl);
+		__pm_relax(ps_data->ps_nosuspend_wl);
 #else
 		if(device_may_wakeup(&client->dev))
 		{
@@ -4715,10 +4715,10 @@ static int stk3x1x_probe(struct i2c_client *client,
 	ps_data->client = client;
 	i2c_set_clientdata(client,ps_data);
 	mutex_init(&ps_data->io_lock);
-	wake_lock_init(&ps_data->ps_wakelock,WAKE_LOCK_SUSPEND, "stk_input_wakelock");
+	ps_data->ps_wakelock = wakeup_source_register(NULL, "stk_input_wakelock");
 
 #ifdef STK_POLL_PS
-	wake_lock_init(&ps_data->ps_nosuspend_wl,WAKE_LOCK_SUSPEND, "stk_nosuspend_wakelock");
+	ps_data->ps_nosuspend_wl = wakeup_source_register(NULL, "stk_nosuspend_wakelock");
 #endif
 
 	if (client->dev.of_node) {
@@ -4891,9 +4891,9 @@ err_power_on:
 #endif
 err_als_input_allocate:
 #ifdef STK_POLL_PS
-	wake_lock_destroy(&ps_data->ps_nosuspend_wl);
+	wakeup_source_unregister(ps_data->ps_nosuspend_wl);
 #endif
-	wake_lock_destroy(&ps_data->ps_wakelock);
+	wakeup_source_unregister(ps_data->ps_wakelock);
 	mutex_destroy(&ps_data->io_lock);
 	kfree(ps_data);
 
@@ -4947,9 +4947,9 @@ static int stk3x1x_remove(struct i2c_client *client)
 #if (!defined(STK_POLL_ALS) || !defined(STK_POLL_PS))
 	destroy_workqueue(ps_data->stk_wq);
 #endif
-	wake_lock_destroy(&ps_data->ps_nosuspend_wl);
+	wakeup_source_unregister(ps_data->ps_nosuspend_wl);
 #endif
-	wake_lock_destroy(&ps_data->ps_wakelock);
+	wakeup_source_unregister(ps_data->ps_wakelock);
 	mutex_destroy(&ps_data->io_lock);
 	kfree(ps_data);
 
