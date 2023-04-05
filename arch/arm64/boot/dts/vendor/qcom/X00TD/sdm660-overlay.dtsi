@@ -2,10 +2,13 @@
 
 / {
 	reserved-memory {
-		ramoops_mem: ramoops_region@b0000000 {
-			compatible = "removed-dma-pool";
-			no-map;
-			reg = <0x0 0xb0000000 0x0 0x00400000>;
+	ramoops {
+		status = "ok";
+		compatible = "removed-dma-pool", "ramoops";
+		no-map;
+		reg = <0x0 0xA0000000 0x0 0x00400000>;
+		console-size = <0x200000>;
+		pmsg-size = <0x200000>;
 		};
 	};
 };
@@ -67,14 +70,5 @@
 			gpio-key,wakeup;
 			debounce-interval = <15>;
 		};
-	};
-
-	ramoops {
-		compatible = "ramoops";
-		status = "ok";
-		memory-region = <&ramoops_mem>;
-
-		console-size = <0x0 0x200000>; /* 2 MB */
-		pmsg-size    = <0x0 0x200000>; /* 2 MB */
 	};
 };
