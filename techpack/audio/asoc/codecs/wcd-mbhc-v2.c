@@ -31,7 +31,7 @@ static int hph_state;
 #endif
 
 #ifdef CONFIG_MACH_ASUS_X00TD
-static bool wcd_swch_level_remove(struct wcd_mbhc *mbhc);
+bool wcd_swch_level_remove(struct wcd_mbhc *mbhc);
 #endif
 
 void wcd_mbhc_jack_report(struct wcd_mbhc *mbhc,
