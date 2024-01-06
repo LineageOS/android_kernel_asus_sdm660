@@ -1,6 +1,48 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 / {
+cpus {
+	cpu@0 {
+		efficiency = <618>;
+		capacity-dmips-mhz = <618>;
+	};
+
+	cpu@4 {
+		efficiency = <1024>;
+		capacity-dmips-mhz = <1024>;
+	};
+};
+
+energy_costs: energy-costs {
+	compatible = "sched-energy";
+
+	CPU_COST_0: core-cost0 {
+		busy-cost-data = <
+			  633600   43
+			  902400   62
+			 1113600   80
+			 1401600  123
+			 1536000  144
+			 1612800  160
+		>;
+		idle-cost-data = <
+			3 2 1
+		>;
+	};
+
+	CPU_COST_1: core-cost1 {
+		busy-cost-data = <
+			 1113600  232
+			 1401600  326
+			 1747200  488
+			 1804800  510
+		>;
+		idle-cost-data = <
+			3 2 1
+		>;
+	};
+};
+
 	reserved-memory {
 	ramoops {
 		status = "ok";
