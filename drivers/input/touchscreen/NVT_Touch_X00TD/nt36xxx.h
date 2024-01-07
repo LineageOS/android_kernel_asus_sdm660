@@ -161,6 +161,7 @@ struct nvt_ts_data {
 	const struct nvt_ts_mem_map *mmap;
 	uint8_t carrier_system;
 	uint16_t nvt_pid;
+	struct wakeup_source *gesture_wakeup;
 // Huaqin add for vsp/vsn. by zhengwu.lu. at 2018/03/07  start
 #if NVT_POWER_SOURCE_CUST_EN
 	struct regulator *lcm_lab;
