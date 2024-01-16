@@ -72,7 +72,7 @@
 	qcom,misc-clk-trim-error-reg = <0xf3>;
 	qcom,actuator-type = <1>;
 	qcom,play-mode = "direct";
-	qcom,vmax-mv = <3200>;
+	qcom,vmax-mv = <2800>;
 	qcom,ilim-ma = <800>;
 	qcom,sc-dbc-cycles = <8>;
 	qcom,wave-play-rate-us = <6667>;
