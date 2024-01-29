@@ -23,24 +23,11 @@
 
 &firmware {
 	android {
+		boot_devices = "soc/c0c4000.sdhci";
+		/delete-node/ fstab;
+
 		vbmeta {
 			status = "disabled";
-		};
-
-		fstab {
-			vendor {
-				fsmgr_flags = "wait";
-				status = "ok";
-			};
-
-			system {
-				compatible = "android,system";
-				dev = "/dev/block/platform/soc/c0c4000.sdhci/by-name/system";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,discard";
-				fsmgr_flags = "wait";
-				status = "ok";
-			};
 		};
 	};
 };
