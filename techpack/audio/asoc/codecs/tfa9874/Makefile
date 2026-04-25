@@ -18,7 +18,7 @@
 # debugging support (also enables trace_printk)
 EXTRA_CFLAGS += -DDEBUG -DTFA9874_NONDSP_STEREO
 
-EXTRA_CFLAGS += -I$(src)/inc
+EXTRA_CFLAGS += -I$(srctree)/$(src)/inc
 EXTRA_CFLAGS += -Werror
 
 snd-soc-tfa9874-objs += tfa98xx.o
