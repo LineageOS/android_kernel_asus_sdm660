@@ -26,7 +26,6 @@
 #include <linux/fcntl.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include "fg-core.h"
 
 #define	START_REPORT_BAT_TEMPRATURE	620
 #endif
