@@ -1444,11 +1444,11 @@ struct mv643xx_eth_stats {
 };
 
 #define SSTAT(m)						\
-	{ #m, FIELD_SIZEOF(struct net_device_stats, m),		\
+	{ #m, sizeof_field(struct net_device_stats, m),		\
 	  offsetof(struct net_device, stats.m), -1 }
 
 #define MIBSTAT(m)						\
-	{ #m, FIELD_SIZEOF(struct mib_counters, m),		\
+	{ #m, sizeof_field(struct mib_counters, m),		\
 	  -1, offsetof(struct mv643xx_eth_private, mib_counters.m) }
 
 static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
@@ -2778,7 +2778,7 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 	if (!ppdev)
 		return -ENOMEM;
 	ppdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	ppdev->dev.of_node = pnp;
+	ppdev->dev.of_node = of_node_get(pnp);
 
 	ret = platform_device_add_resources(ppdev, &res, 1);
 	if (ret)

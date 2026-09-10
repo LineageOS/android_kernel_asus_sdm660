@@ -196,7 +196,7 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 	struct net_device *dev = dst->dev;
 	unsigned int hh_len = LL_RESERVED_SPACE(dev);
 	struct neighbour *neigh;
-	u32 nexthop;
+	bool is_v6gw = false;
 
 	if (rt->rt_type == RTN_MULTICAST) {
 		IP_UPD_PO_STATS(net, IPSTATS_MIB_OUTMCAST, skb->len);
@@ -226,16 +226,13 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 	}
 
 	rcu_read_lock_bh();
-	nexthop = (__force u32) rt_nexthop(rt, ip_hdr(skb)->daddr);
-	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
-	if (unlikely(!neigh))
-		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
+	neigh = ip_neigh_for_gw(rt, skb, &is_v6gw);
 	if (!IS_ERR(neigh)) {
 		int res;
 
 		sock_confirm_neigh(skb, neigh);
-		res = neigh_output(neigh, skb);
-
+		/* if crossing protocols, can not use the cached header */
+		res = neigh_output(neigh, skb, is_v6gw);
 		rcu_read_unlock_bh();
 		return res;
 	}
@@ -328,12 +325,24 @@ static int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *sk
 static int ip_mc_finish_output(struct net *net, struct sock *sk,
 			       struct sk_buff *skb)
 {
+	struct rtable *new_rt;
 	int ret;
 
 	ret = BPF_CGROUP_RUN_PROG_INET_EGRESS(sk, skb);
 	if (ret) {
 		kfree_skb(skb);
 		return ret;
+	}
+
+	/* Reset rt_iif so that inet_iif() will return skb->skb_iif. Setting
+	 * this to non-zero causes ipi_ifindex in in_pktinfo to be overwritten,
+	 * see ipv4_pktinfo_prepare().
+	 */
+	new_rt = rt_dst_clone(net->loopback_dev, skb_rtable(skb));
+	if (new_rt) {
+		new_rt->rt_iif = 0;
+		skb_dst_drop(skb);
+		skb_dst_set(skb, &new_rt->dst);
 	}
 
 	return dev_loopback_xmit(net, sk, skb);
@@ -522,6 +531,12 @@ no_route:
 	return -EHOSTUNREACH;
 }
 EXPORT_SYMBOL(__ip_queue_xmit);
+
+int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
+{
+	return __ip_queue_xmit(sk, skb, fl, inet_sk(sk)->tos);
+}
+EXPORT_SYMBOL(ip_queue_xmit);
 
 static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 {
@@ -1244,7 +1259,7 @@ ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 	if (cork->flags & IPCORK_OPT)
 		opt = cork->opt;
 
-	if (!(rt->dst.dev->features&NETIF_F_SG))
+	if (!(rt->dst.dev->features & NETIF_F_SG))
 		return -EOPNOTSUPP;
 
 	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
@@ -1324,6 +1339,8 @@ ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 			err = -EMSGSIZE;
 			goto error;
 		}
+
+		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 
 		if (skb->ip_summed == CHECKSUM_NONE) {
 			__wsum csum;
@@ -1429,7 +1446,7 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	ip_select_ident(net, skb, sk);
 
 	if (opt) {
-		iph->ihl += opt->optlen>>2;
+		iph->ihl += opt->optlen >> 2;
 		ip_options_build(skb, opt, cork->addr, rt, 0);
 	}
 
@@ -1450,7 +1467,8 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 		 * so icmphdr does not in skb linear region and can not get icmp_type
 		 * by icmp_hdr(skb)->type.
 		 */
-		if (sk->sk_type == SOCK_RAW && !inet_sk(sk)->hdrincl)
+		if (sk->sk_type == SOCK_RAW &&
+		    !(fl4->flowi4_flags & FLOWI_FLAG_KNOWN_NH))
 			icmp_type = fl4->fl4_icmp_type;
 		else
 			icmp_type = icmp_hdr(skb)->type;

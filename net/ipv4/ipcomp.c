@@ -48,15 +48,16 @@ static int ipcomp4_err(struct sk_buff *skb, u32 info)
 		return 0;
 
 	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
-		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_COMP, 0);
+		ipv4_update_pmtu(skb, net, info, 0, IPPROTO_COMP);
 	else
-		ipv4_redirect(skb, net, 0, 0, IPPROTO_COMP, 0);
+		ipv4_redirect(skb, net, 0, IPPROTO_COMP);
 	xfrm_state_put(x);
 
 	return 0;
 }
 
 /* We always hold one tunnel user reference to indicate a tunnel */
+static struct lock_class_key xfrm_state_lock_key;
 static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 {
 	struct net *net = xs_net(x);
@@ -65,6 +66,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t = xfrm_state_alloc(net);
 	if (!t)
 		goto out;
+	lockdep_set_class(&t->lock, &xfrm_state_lock_key);
 
 	t->id.proto = IPPROTO_IPIP;
 	t->id.spi = x->props.saddr.a4;

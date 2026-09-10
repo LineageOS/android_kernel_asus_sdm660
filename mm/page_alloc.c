@@ -1047,7 +1047,7 @@ static inline bool page_expected_state(struct page *page,
 	if (unlikely((unsigned long)page->mapping |
 			page_ref_count(page) |
 #ifdef CONFIG_MEMCG
-			(unsigned long)page->mem_cgroup |
+			(unsigned long)page_memcg(page) |
 #endif
 			(page->flags & check_flags)))
 		return false;
@@ -1074,7 +1074,7 @@ static void free_pages_check_bad(struct page *page)
 		bad_flags = PAGE_FLAGS_CHECK_AT_FREE;
 	}
 #ifdef CONFIG_MEMCG
-	if (unlikely(page->mem_cgroup))
+	if (unlikely(page_memcg(page)))
 		bad_reason = "page still charged to cgroup";
 #endif
 	bad_page(page, bad_reason, bad_flags);
@@ -1184,8 +1184,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
 	}
 	if (PageMappingFlags(page))
 		page->mapping = NULL;
-	if (memcg_kmem_enabled() && PageKmemcg(page))
-		memcg_kmem_uncharge(page, order);
+	if (memcg_kmem_enabled() && PageMemcgKmem(page))
+		__memcg_kmem_uncharge_page(page, order);
 	if (check_free)
 		bad += free_pages_check(page);
 	if (bad)
@@ -2014,7 +2014,7 @@ static void check_new_page_bad(struct page *page)
 		bad_flags = PAGE_FLAGS_CHECK_AT_PREP;
 	}
 #ifdef CONFIG_MEMCG
-	if (unlikely(page->mem_cgroup))
+	if (unlikely(page_memcg(page)))
 		bad_reason = "page still charged to cgroup";
 #endif
 	bad_page(page, bad_reason, bad_flags);
@@ -4579,6 +4579,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 restart:
 	compaction_retries = 0;
 	no_progress_loops = 0;
+	compact_result = COMPACT_SKIPPED;
 	compact_priority = DEF_COMPACT_PRIORITY;
 	cpuset_mems_cookie = read_mems_allowed_begin();
 	zonelist_iter_cookie = zonelist_iter_begin();
@@ -4649,6 +4650,20 @@ restart:
 				goto nopage;
 
 			/*
+			 * THP page faults may attempt local node only first,
+			 * but are then allowed to only compact, not reclaim,
+			 * see alloc_pages_mpol().
+			 *
+			 * Compaction can fail for other reasons than those
+			 * checked above and we don't want such THP allocations
+			 * to put reclaim pressure on a single node in a
+			 * situation where other nodes might have plenty of
+			 * available memory.
+			 */
+			if (gfp_mask & __GFP_THISNODE)
+				goto nopage;
+
+			/*
 			 * Looks like reclaim/compaction is worth trying, but
 			 * sync compaction could be very expensive, so keep
 			 * using async compaction.
@@ -4658,6 +4673,14 @@ restart:
 	}
 
 retry:
+	/*
+	 * Deal with possible cpuset update races or zonelist updates to avoid
+	 * infinite retries.
+	 */
+	if (check_retry_cpuset(cpuset_mems_cookie, ac) ||
+	    check_retry_zonelist(zonelist_iter_cookie))
+		goto restart;
+
 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
 	if (alloc_flags & ALLOC_KSWAPD)
 		wake_all_kswapds(order, gfp_mask, ac);
@@ -4927,7 +4950,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
 
 out:
 	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
-	    unlikely(memcg_kmem_charge(page, gfp_mask, order) != 0)) {
+	    unlikely(__memcg_kmem_charge_page(page, gfp_mask, order) != 0)) {
 		__free_pages(page, order);
 		page = NULL;
 	}
@@ -5652,21 +5675,11 @@ char numa_zonelist_order[] = "Node";
  * sysctl handler for numa_zonelist_order
  */
 int numa_zonelist_order_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *length,
-		loff_t *ppos)
+		void *buffer, size_t *length, loff_t *ppos)
 {
-	char *str;
-	int ret;
-
-	if (!write)
-		return proc_dostring(table, write, buffer, length, ppos);
-	str = memdup_user_nul(buffer, 16);
-	if (IS_ERR(str))
-		return PTR_ERR(str);
-
-	ret = __parse_numa_zonelist_order(str);
-	kfree(str);
-	return ret;
+	if (write)
+		return __parse_numa_zonelist_order(buffer);
+	return proc_dostring(table, write, buffer, length, ppos);
 }
 
 
@@ -7971,7 +7984,7 @@ postcore_initcall(init_per_zone_wmark_min)
  *	or extra_free_kbytes changes.
  */
 int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
-	void __user *buffer, size_t *length, loff_t *ppos)
+		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
@@ -8014,7 +8027,7 @@ int kswapd_threads_sysctl_handler(struct ctl_table *table, int write,
 }
 
 int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
-	void __user *buffer, size_t *length, loff_t *ppos)
+		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
@@ -8044,7 +8057,7 @@ static void setup_min_unmapped_ratio(void)
 
 
 int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
-	void __user *buffer, size_t *length, loff_t *ppos)
+		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
@@ -8071,7 +8084,7 @@ static void setup_min_slab_ratio(void)
 }
 
 int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
-	void __user *buffer, size_t *length, loff_t *ppos)
+		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
@@ -8095,7 +8108,7 @@ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
  * if in function of the boot time zone sizes.
  */
 int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
-	void __user *buffer, size_t *length, loff_t *ppos)
+		void *buffer, size_t *length, loff_t *ppos)
 {
 	proc_dointvec_minmax(table, write, buffer, length, ppos);
 	setup_per_zone_lowmem_reserve();
@@ -8108,7 +8121,7 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
  * pagelist can have before it gets flushed back to buddy allocator.
  */
 int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *table, int write,
-	void __user *buffer, size_t *length, loff_t *ppos)
+		void *buffer, size_t *length, loff_t *ppos)
 {
 	struct zone *zone;
 	int old_percpu_pagelist_fraction;
@@ -8267,7 +8280,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 			else
 				table = memblock_virt_alloc_raw(size, 0);
 		} else if (hashdist) {
-			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+			table = __vmalloc(size, gfp_flags);
 		} else {
 			/*
 			 * If bucketsize is not a power-of-two, we may free

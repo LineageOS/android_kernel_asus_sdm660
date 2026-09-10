@@ -120,7 +120,7 @@ int __kprobes aarch64_insn_read(void *addr, u32 *insnp)
 	int ret;
 	__le32 val;
 
-	ret = probe_kernel_read(&val, addr, AARCH64_INSN_SIZE);
+	ret = copy_from_kernel_nofault(&val, addr, AARCH64_INSN_SIZE);
 	if (!ret)
 		*insnp = le32_to_cpu(val);
 
@@ -136,7 +136,7 @@ static int __kprobes __aarch64_insn_write(void *addr, __le32 insn)
 	raw_spin_lock_irqsave(&patch_lock, flags);
 	waddr = patch_map(addr, FIX_TEXT_POKE0);
 
-	ret = probe_kernel_write(waddr, &insn, AARCH64_INSN_SIZE);
+	ret = copy_to_kernel_nofault(waddr, &insn, AARCH64_INSN_SIZE);
 
 	patch_unmap(FIX_TEXT_POKE0);
 	raw_spin_unlock_irqrestore(&patch_lock, flags);
@@ -571,7 +571,7 @@ u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
 					     offset >> 2);
 }
 
-u32 __kprobes aarch64_insn_gen_hint(enum aarch64_insn_hint_op op)
+u32 __kprobes aarch64_insn_gen_hint(enum aarch64_insn_hint_cr_op op)
 {
 	return aarch64_insn_get_hint_value() | op;
 }

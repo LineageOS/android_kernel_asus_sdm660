@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sleep.c - ACPI sleep support.
  *
@@ -5,9 +6,6 @@
  * Copyright (c) 2004 David Shaohua Li <shaohua.li@intel.com>
  * Copyright (c) 2000-2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
- *
- * This file is released under the GPLv2.
- *
  */
 
 #include <linux/delay.h>
@@ -365,6 +363,14 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "80E1"),
+		},
+	},
+	{
+	.callback = init_nvs_save_s3,
+	.ident = "Lenovo G70-35",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "80Q5"),
 		},
 	},
 	/*

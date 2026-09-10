@@ -627,8 +627,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 		}
 
 		/* [10] Grab the next task, i.e. owner of @lock */
-		task = rt_mutex_owner(lock);
-		get_task_struct(task);
+		task = get_task_struct(rt_mutex_owner(lock));
 		raw_spin_lock(&task->pi_lock);
 
 		/*
@@ -708,8 +707,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	}
 
 	/* [10] Grab the next task, i.e. the owner of @lock */
-	task = rt_mutex_owner(lock);
-	get_task_struct(task);
+	task = get_task_struct(rt_mutex_owner(lock));
 	raw_spin_lock(&task->pi_lock);
 
 	/* [11] requeue the pi waiters if necessary */
@@ -1064,20 +1062,26 @@ static void mark_wakeup_next_waiter(struct wake_q_head *wake_q,
  *
  * Must be called with lock->wait_lock held and interrupts disabled. I must
  * have just failed to try_to_take_rt_mutex().
+ *
+ * When invoked from rt_mutex_start_proxy_lock() waiter::task != current !
  */
 static void remove_waiter(struct rt_mutex *lock,
 			  struct rt_mutex_waiter *waiter)
 {
 	bool is_top_waiter = (waiter == rt_mutex_top_waiter(lock));
 	struct task_struct *owner = rt_mutex_owner(lock);
+	struct task_struct *waiter_task = waiter->task;
 	struct rt_mutex *next_lock;
 
 	lockdep_assert_held(&lock->wait_lock);
 
-	raw_spin_lock(&current->pi_lock);
+	if (!waiter_task) /* never enqueued */
+		return;
+
+	raw_spin_lock(&waiter_task->pi_lock);
 	rt_mutex_dequeue(lock, waiter);
-	current->pi_blocked_on = NULL;
-	raw_spin_unlock(&current->pi_lock);
+	waiter_task->pi_blocked_on = NULL;
+	raw_spin_unlock(&waiter_task->pi_lock);
 
 	/*
 	 * Only update priority if the waiter was the highest priority
@@ -1113,7 +1117,7 @@ static void remove_waiter(struct rt_mutex *lock,
 	raw_spin_unlock_irq(&lock->wait_lock);
 
 	rt_mutex_adjust_prio_chain(owner, RT_MUTEX_MIN_CHAINWALK, lock,
-				   next_lock, NULL, current);
+				   next_lock, NULL, waiter_task);
 
 	raw_spin_lock_irq(&lock->wait_lock);
 }
@@ -1520,7 +1524,7 @@ int __sched rt_mutex_lock_interruptible(struct rt_mutex *lock)
 	mutex_acquire(&lock->dep_map, 0, 0, _RET_IP_);
 	ret = rt_mutex_fastlock(lock, TASK_INTERRUPTIBLE, rt_mutex_slowlock);
 	if (ret)
-		mutex_release(&lock->dep_map, 1, _RET_IP_);
+		mutex_release(&lock->dep_map, _RET_IP_);
 
 	return ret;
 }
@@ -1564,7 +1568,7 @@ rt_mutex_timed_lock(struct rt_mutex *lock, struct hrtimer_sleeper *timeout)
 				       RT_MUTEX_MIN_CHAINWALK,
 				       rt_mutex_slowlock);
 	if (ret)
-		mutex_release(&lock->dep_map, 1, _RET_IP_);
+		mutex_release(&lock->dep_map, _RET_IP_);
 
 	return ret;
 }
@@ -1603,7 +1607,7 @@ EXPORT_SYMBOL_GPL(rt_mutex_trylock);
  */
 void __sched rt_mutex_unlock(struct rt_mutex *lock)
 {
-	mutex_release(&lock->dep_map, 1, _RET_IP_);
+	mutex_release(&lock->dep_map, _RET_IP_);
 	rt_mutex_fastunlock(lock, rt_mutex_slowunlock);
 }
 EXPORT_SYMBOL_GPL(rt_mutex_unlock);
@@ -1803,7 +1807,7 @@ int rt_mutex_start_proxy_lock(struct rt_mutex *lock,
 
 	raw_spin_lock_irq(&lock->wait_lock);
 	ret = __rt_mutex_start_proxy_lock(lock, waiter, task);
-	if (unlikely(ret))
+	if (unlikely(ret < 0))
 		remove_waiter(lock, waiter);
 	raw_spin_unlock_irq(&lock->wait_lock);
 

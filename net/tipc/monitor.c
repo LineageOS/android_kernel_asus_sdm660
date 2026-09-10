@@ -677,7 +677,8 @@ void tipc_mon_reinit_self(struct net *net)
 		if (!mon)
 			continue;
 		write_lock_bh(&mon->lock);
-		mon->self->addr = tipc_own_addr(net);
+		if (mon->self)
+			mon->self->addr = tipc_own_addr(net);
 		write_unlock_bh(&mon->lock);
 	}
 }
@@ -713,7 +714,7 @@ static int __tipc_nl_add_monitor_peer(struct tipc_peer *peer,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_MON_PEER);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MON_PEER);
 	if (!attrs)
 		goto msg_full;
 
@@ -802,7 +803,7 @@ int __tipc_nl_add_monitor(struct net *net, struct tipc_nl_msg *msg,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_MON);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MON);
 	if (!attrs)
 		goto msg_full;
 

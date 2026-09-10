@@ -355,7 +355,7 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	if (arg.block_size != PAGE_SIZE)
 		return -EINVAL;
 
-	if (arg.salt_size > FIELD_SIZEOF(struct fsverity_descriptor, salt))
+	if (arg.salt_size > sizeof_field(struct fsverity_descriptor, salt))
 		return -EMSGSIZE;
 
 	if (arg.sig_size > FS_VERITY_MAX_SIGNATURE_SIZE)
@@ -368,7 +368,7 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	 * has verity enabled, and to stabilize the data being hashed.
 	 */
 
-	err = inode_permission(inode, MAY_WRITE);
+	err = file_permission(filp, MAY_WRITE);
 	if (err)
 		return err;
 

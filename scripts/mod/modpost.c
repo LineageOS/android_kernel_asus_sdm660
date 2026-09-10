@@ -610,6 +610,10 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 		/* Special register function linked on all modules during final link of .ko */
 		if (strstarts(symname, "_restgpr0_") ||
 		    strstarts(symname, "_savegpr0_") ||
+		    strstarts(symname, "_restgpr1_") ||
+		    strstarts(symname, "_savegpr1_") ||
+		    strstarts(symname, "_restfpr_") ||
+		    strstarts(symname, "_savefpr_") ||
 		    strstarts(symname, "_restvr_") ||
 		    strstarts(symname, "_savevr_") ||
 		    strcmp(symname, ".TOC.") == 0)
@@ -799,9 +803,9 @@ static int match(const char *sym, const char * const pat[])
 
 		/* "*foo*" */
 		if (*p == '*' && *endp == '*') {
-			char *here, *bare = strndup(p + 1, strlen(p) - 2);
+			char *bare = NOFAIL(strndup(p + 1, strlen(p) - 2));
+			const char *here = strstr(sym, bare);
 
-			here = strstr(sym, bare);
 			free(bare);
 			if (here != NULL)
 				return 1;
@@ -901,7 +905,7 @@ static void check_section(const char *modname, struct elf_info *elf,
 		".kprobes.text", ".cpuidle.text", ".noinstr.text"
 #define OTHER_TEXT_SECTIONS ".ref.text", ".head.text", ".spinlock.text", \
 		".fixup", ".entry.text", ".exception.text", ".text.*", \
-		".coldtext"
+		".coldtext", ".irqentry.text"
 
 #define INIT_SECTIONS      ".init.*"
 #define MEM_INIT_SECTIONS  ".meminit.*"
@@ -945,7 +949,6 @@ static const char *const head_sections[] = { ".head.text*", NULL };
 static const char *const linker_symbols[] =
 	{ "__init_begin", "_sinittext", "_einittext", NULL };
 static const char *const optim_symbols[] = { "*.constprop.*", NULL };
-static const char *const cfi_symbols[] = { "*.cfi", NULL };
 
 enum mismatch {
 	TEXT_TO_ANY_INIT,
@@ -1176,16 +1179,6 @@ static const struct sectioncheck *section_mismatch(
  *   names to work.  (One situation where gcc can autogenerate ELF
  *   local symbols is when "-fsection-anchors" is used.)
  *
- * Pattern 7:
- *   With CONFIG_CFI_CLANG, clang appends .cfi to all indirectly called
- *   functions and creates a function stub with the original name. This
- *   stub is always placed in .text, even if the actual function with the
- *   .cfi postfix is in .init.text or .exit.text.
- *   This pattern is identified by
- *   tosec   = init or exit section
- *   fromsec = text section
- *   tosym   = *.cfi
- *
  **/
 static int secref_whitelist(const struct sectioncheck *mismatch,
 			    const char *fromsec, const char *fromsym,
@@ -1226,12 +1219,6 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 
 	/* Check for pattern 6 */
 	if (strstarts(fromsym, ".L"))
-		return 0;
-
-	/* Check for pattern 7 */
-	if (match(fromsec, text_sections) &&
-	    match(tosec, init_exit_sections) &&
-	    match(tosym, cfi_symbols))
 		return 0;
 
 	return 1;

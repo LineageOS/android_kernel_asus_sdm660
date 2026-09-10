@@ -100,6 +100,9 @@ void machine_restart(char *cmd)
 #endif
 	/* set up a new led state on systems shipped with a LED State panel */
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_SHUTDOWN);
+
+	/* prevent interrupts during reboot */
+	set_eiem(0);
 	
 	/* "Normal" system reset */
 	pdc_do_reset();
@@ -312,7 +315,7 @@ void *dereference_function_descriptor(void *ptr)
 	Elf64_Fdesc *desc = ptr;
 	void *p;
 
-	if (!probe_kernel_address(&desc->addr, p))
+	if (!get_kernel_nofault(p, &desc->addr))
 		ptr = p;
 	return ptr;
 }

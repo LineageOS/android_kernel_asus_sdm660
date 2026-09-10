@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * efi.c - EFI subsystem
  *
@@ -9,8 +10,6 @@
  * allowing the efivarfs to be mounted or the efivars module to be loaded.
  * The existance of /sys/firmware/efi may also be used by userspace to
  * determine that the system supports EFI.
- *
- * This file is released under the GPLv2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -79,7 +78,7 @@ struct mm_struct efi_mm = {
 	.mm_rb			= RB_ROOT,
 	.mm_users		= ATOMIC_INIT(2),
 	.mm_count		= ATOMIC_INIT(1),
-	.mmap_sem		= __RWSEM_INITIALIZER(efi_mm.mmap_sem),
+	.mmap_lock		= __RWSEM_INITIALIZER(efi_mm.mmap_lock),
 	.page_table_lock	= __SPIN_LOCK_UNLOCKED(efi_mm.page_table_lock),
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
 	.cpu_bitmap		= { [BITS_TO_LONGS(NR_CPUS)] = 0},
@@ -650,7 +649,7 @@ device_initcall(efi_load_efivars);
 		{ name },				   \
 		{ prop },				   \
 		offsetof(struct efi_fdt_params, field),    \
-		FIELD_SIZEOF(struct efi_fdt_params, field) \
+		sizeof_field(struct efi_fdt_params, field) \
 	}
 
 struct params {

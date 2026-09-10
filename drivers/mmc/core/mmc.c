@@ -1432,7 +1432,9 @@ static void mmc_select_driver_type(struct mmc_card *card)
 
 	card->drive_strength = drive_strength;
 
-	if (drv_type)
+	if (fixed_drv_type >= 0 && drive_strength)
+		mmc_set_driver_type(card->host, drive_strength);
+	else if (drv_type)
 		mmc_set_driver_type(card->host, drv_type);
 }
 
@@ -2555,7 +2557,8 @@ static int mmc_test_awake_ext_csd(struct mmc_host *host)
 static bool _mmc_cache_enabled(struct mmc_host *host)
 {
 	return host->card->ext_csd.cache_size > 0 &&
-	       host->card->ext_csd.cache_ctrl & 1;
+	       host->card->ext_csd.cache_ctrl & 1 &&
+	       !(host->card->quirks & MMC_QUIRK_CACHE_DISABLE);
 }
 
 static int _mmc_suspend(struct mmc_host *host, bool is_suspend)

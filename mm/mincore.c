@@ -19,7 +19,7 @@
 #include <linux/hugetlb.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
 			unsigned long end, struct mm_walk *walk)
@@ -66,7 +66,7 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
 		 * shmem/tmpfs may return swap: account for swapcache
 		 * page too.
 		 */
-		if (radix_tree_exceptional_entry(page)) {
+		if (xa_is_value(page)) {
 			swp_entry_t swp = radix_to_swp_entry(page);
 			page = find_get_page(swap_address_space(swp),
 					     swp_offset(swp));
@@ -182,7 +182,7 @@ static inline bool can_do_mincore(struct vm_area_struct *vma)
 	 * mappings, which opens a side channel.
 	 */
 	return inode_owner_or_capable(file_inode(vma->vm_file)) ||
-		inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
+	       file_permission(vma->vm_file, MAY_WRITE) == 0;
 }
 
 /*
@@ -276,9 +276,9 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
 		 * Do at most PAGE_SIZE entries per iteration, due to
 		 * the temporary buffer size.
 		 */
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		retval = do_mincore(start, min(pages, PAGE_SIZE), tmp);
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 
 		if (retval <= 0)
 			break;

@@ -15,7 +15,7 @@
 #include <linux/ctype.h>
 #include <linux/security.h>
 #include <linux/vmalloc.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/mount.h>
@@ -23,6 +23,7 @@
 #include <linux/capability.h>
 #include <linux/rcupdate.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/poll.h>
 #include <uapi/linux/major.h>
 #include <uapi/linux/magic.h>
@@ -142,7 +143,7 @@ static const struct super_operations aafs_super_ops = {
 	.show_path = aafs_show_path,
 };
 
-static int fill_super(struct super_block *sb, void *data, int silent)
+static int apparmorfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	static struct tree_descr files[] = { {""} };
 	int error;
@@ -155,16 +156,25 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct dentry *aafs_mount(struct file_system_type *fs_type,
-				 int flags, const char *dev_name, void *data)
+static int apparmorfs_get_tree(struct fs_context *fc)
 {
-	return mount_single(fs_type, flags, data, fill_super);
+	return get_tree_single(fc, apparmorfs_fill_super);
+}
+
+static const struct fs_context_operations apparmorfs_context_ops = {
+	.get_tree	= apparmorfs_get_tree,
+};
+
+static int apparmorfs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &apparmorfs_context_ops;
+	return 0;
 }
 
 static struct file_system_type aafs_ops = {
 	.owner = THIS_MODULE,
 	.name = AAFS_NAME,
-	.mount = aafs_mount,
+	.init_fs_context = apparmorfs_init_fs_context,
 	.kill_sb = kill_anon_super,
 };
 
@@ -411,7 +421,8 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 }
 
 static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
-			     loff_t *pos, struct aa_ns *ns)
+			     loff_t *pos, struct aa_ns *ns,
+			     const struct cred *ocred)
 {
 	struct aa_loaddata *data;
 	struct aa_label *label;
@@ -422,7 +433,7 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
-	error = aa_may_manage_policy(label, ns, mask);
+	error = aa_may_manage_policy(current_cred(), label, ns, ocred, mask);
 	if (error)
 		goto end_section;
 
@@ -443,7 +454,8 @@ static ssize_t profile_load(struct file *f, const char __user *buf, size_t size,
 			    loff_t *pos)
 {
 	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
-	int error = policy_update(AA_MAY_LOAD_POLICY, buf, size, pos, ns);
+	int error = policy_update(AA_MAY_LOAD_POLICY, buf, size, pos, ns,
+				  f->f_cred);
 
 	aa_put_ns(ns);
 
@@ -461,7 +473,7 @@ static ssize_t profile_replace(struct file *f, const char __user *buf,
 {
 	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
 	int error = policy_update(AA_MAY_LOAD_POLICY | AA_MAY_REPLACE_POLICY,
-				  buf, size, pos, ns);
+				  buf, size, pos, ns, f->f_cred);
 	aa_put_ns(ns);
 
 	return error;
@@ -485,7 +497,8 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
-	error = aa_may_manage_policy(label, ns, AA_MAY_REMOVE_POLICY);
+	error = aa_may_manage_policy(current_cred(), label, ns,
+				     f->f_cred, AA_MAY_REMOVE_POLICY);
 	if (error)
 		goto out;
 
@@ -1532,6 +1545,15 @@ static const char *rawdata_get_link_base(struct dentry *dentry,
 
 	label = aa_get_label_rcu(&proxy->label);
 	profile = labels_profile(label);
+
+	/* rawdata can be null when aa_g_export_binary is unset during
+	 * runtime and a profile is replaced
+	 */
+	if (!profile->rawdata) {
+		aa_put_label(label);
+		return ERR_PTR(-ENOENT);
+	}
+
 	depth = profile_depth(profile);
 	target = gen_symlink_name(depth, profile->rawdata->name, name);
 	aa_put_label(label);
@@ -1701,7 +1723,8 @@ static int ns_mkdir_op(struct inode *dir, struct dentry *dentry, umode_t mode)
 	int error;
 
 	label = begin_current_label_crit_section();
-	error = aa_may_manage_policy(label, NULL, AA_MAY_LOAD_POLICY);
+	error = aa_may_manage_policy(current_cred(), label, NULL, NULL,
+				     AA_MAY_LOAD_POLICY);
 	end_current_label_crit_section(label);
 	if (error)
 		return error;
@@ -1750,7 +1773,8 @@ static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
 	int error;
 
 	label = begin_current_label_crit_section();
-	error = aa_may_manage_policy(label, NULL, AA_MAY_LOAD_POLICY);
+	error = aa_may_manage_policy(current_cred(), label, NULL, NULL,
+				     AA_MAY_LOAD_POLICY);
 	end_current_label_crit_section(label);
 	if (error)
 		return error;

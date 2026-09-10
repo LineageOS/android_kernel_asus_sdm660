@@ -539,7 +539,7 @@ int mrp_request_join(const struct net_device *dev,
 	struct mrp_attr *attr;
 
 	if (sizeof(struct mrp_skb_cb) + len >
-	    FIELD_SIZEOF(struct sk_buff, cb))
+	    sizeof_field(struct sk_buff, cb))
 		return -ENOMEM;
 
 	spin_lock_bh(&app->lock);
@@ -564,7 +564,7 @@ void mrp_request_leave(const struct net_device *dev,
 	struct mrp_attr *attr;
 
 	if (sizeof(struct mrp_skb_cb) + len >
-	    FIELD_SIZEOF(struct sk_buff, cb))
+	    sizeof_field(struct sk_buff, cb))
 		return;
 
 	spin_lock_bh(&app->lock);
@@ -705,6 +705,12 @@ static int mrp_pdu_parse_vecattr(struct mrp_applicant *app,
 	valen = be16_to_cpu(get_unaligned(&mrp_cb(skb)->vah->lenflags) &
 			    MRP_VECATTR_HDR_LEN_MASK);
 
+	/* If valen is 0, only a LeaveAllEvent is present; FirstValue and
+	 * Vector fields are absent per IEEE 802.1ak.
+	 */
+	if (valen == 0)
+		return 0;
+
 	/* The VectorAttribute structure in a PDU carries event information
 	 * about one or more attributes having consecutive values. Only the
 	 * value for the first attribute is contained in the structure. So
@@ -712,7 +718,7 @@ static int mrp_pdu_parse_vecattr(struct mrp_applicant *app,
 	 * advance to the next event in its Vector.
 	 */
 	if (sizeof(struct mrp_skb_cb) + mrp_cb(skb)->mh->attrlen >
-	    FIELD_SIZEOF(struct sk_buff, cb))
+	    sizeof_field(struct sk_buff, cb))
 		return -1;
 	if (skb_copy_bits(skb, *offset, mrp_cb(skb)->attrvalue,
 			  mrp_cb(skb)->mh->attrlen) < 0)
@@ -755,6 +761,9 @@ static int mrp_pdu_parse_vecattr(struct mrp_applicant *app,
 		vaevents %= __MRP_VECATTR_EVENT_MAX;
 		vaevent = vaevents;
 		mrp_pdu_parse_vecattr_event(app, skb, vaevent);
+		valen--;
+		mrp_attrvalue_inc(mrp_cb(skb)->attrvalue,
+				  mrp_cb(skb)->mh->attrlen);
 	}
 	return 0;
 }

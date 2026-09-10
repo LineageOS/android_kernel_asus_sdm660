@@ -4,6 +4,7 @@
 
 #include <linux/of_graph.h>
 #if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_DRM_PANEL_BRIDGE)
+#include <linux/of.h>
 #include <drm/drm_bridge.h>
 #endif
 
@@ -15,6 +16,18 @@ struct drm_encoder;
 struct drm_panel;
 struct drm_bridge;
 struct device_node;
+
+/**
+ * enum drm_lvds_dual_link_pixels - Pixel order of an LVDS dual-link connection
+ * @DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS: Even pixels are expected to be generated
+ *    from the first port, odd pixels from the second port
+ * @DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS: Odd pixels are expected to be generated
+ *    from the first port, even pixels from the second port
+ */
+enum drm_lvds_dual_link_pixels {
+	DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS = 0,
+	DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS = 1,
+};
 
 #ifdef CONFIG_OF
 uint32_t drm_of_crtc_port_mask(struct drm_device *dev,
@@ -35,6 +48,8 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 				int port, int endpoint,
 				struct drm_panel **panel,
 				struct drm_bridge **bridge);
+int drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
+					  const struct device_node *port2);
 #else
 static inline uint32_t drm_of_crtc_port_mask(struct drm_device *dev,
 					  struct device_node *port)
@@ -77,6 +92,13 @@ static inline int drm_of_find_panel_or_bridge(const struct device_node *np,
 {
 	return -EINVAL;
 }
+
+static inline int
+drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
+				      const struct device_node *port2)
+{
+	return -EINVAL;
+}
 #endif
 
 /*
@@ -100,6 +122,8 @@ static inline int drm_of_panel_bridge_remove(const struct device_node *np,
 
 	bridge = of_drm_find_bridge(remote);
 	drm_panel_bridge_remove(bridge);
+
+	of_node_put(remote);
 
 	return 0;
 #else

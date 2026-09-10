@@ -60,7 +60,8 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_CSUM_MAX, nla, csum_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_CSUM_MAX, nla, csum_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -594,8 +595,12 @@ again:
 			protocol = skb->protocol;
 			orig_vlan_tag_present = true;
 		} else {
-			struct vlan_hdr *vlan = (struct vlan_hdr *)skb->data;
+			struct vlan_hdr *vlan;
 
+			if (!pskb_may_pull(skb, VLAN_HLEN))
+				goto drop;
+
+			vlan = (struct vlan_hdr *)skb->data;
 			protocol = vlan->h_vlan_encapsulated_proto;
 			skb_pull(skb, VLAN_HLEN);
 			skb_reset_network_header(skb);

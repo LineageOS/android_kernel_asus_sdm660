@@ -429,12 +429,12 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 
 		switch (ctx->family) {
 		case NFPROTO_IPV4:
-			len = FIELD_SIZEOF(struct nf_conntrack_tuple,
+			len = sizeof_field(struct nf_conntrack_tuple,
 					   src.u3.ip);
 			break;
 		case NFPROTO_IPV6:
 		case NFPROTO_INET:
-			len = FIELD_SIZEOF(struct nf_conntrack_tuple,
+			len = sizeof_field(struct nf_conntrack_tuple,
 					   src.u3.ip6);
 			break;
 		default:
@@ -446,20 +446,20 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 		if (tb[NFTA_CT_DIRECTION] == NULL)
 			return -EINVAL;
 
-		len = FIELD_SIZEOF(struct nf_conntrack_tuple, src.u3.ip);
+		len = sizeof_field(struct nf_conntrack_tuple, src.u3.ip);
 		break;
 	case NFT_CT_SRC_IP6:
 	case NFT_CT_DST_IP6:
 		if (tb[NFTA_CT_DIRECTION] == NULL)
 			return -EINVAL;
 
-		len = FIELD_SIZEOF(struct nf_conntrack_tuple, src.u3.ip6);
+		len = sizeof_field(struct nf_conntrack_tuple, src.u3.ip6);
 		break;
 	case NFT_CT_PROTO_SRC:
 	case NFT_CT_PROTO_DST:
 		if (tb[NFTA_CT_DIRECTION] == NULL)
 			return -EINVAL;
-		len = FIELD_SIZEOF(struct nf_conntrack_tuple, src.u.all);
+		len = sizeof_field(struct nf_conntrack_tuple, src.u.all);
 		break;
 	case NFT_CT_BYTES:
 	case NFT_CT_PKTS:
@@ -536,7 +536,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	case NFT_CT_MARK:
 		if (tb[NFTA_CT_DIRECTION])
 			return -EINVAL;
-		len = FIELD_SIZEOF(struct nf_conn, mark);
+		len = sizeof_field(struct nf_conn, mark);
 		break;
 #endif
 #ifdef CONFIG_NF_CONNTRACK_LABELS
@@ -783,9 +783,11 @@ nft_ct_timeout_parse_policy(void *timeouts,
 	if (!tb)
 		return -ENOMEM;
 
-	ret = nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
-			       attr, l4proto->ctnl_timeout.nla_policy,
-			       NULL);
+	ret = nla_parse_nested_deprecated(tb,
+					  l4proto->ctnl_timeout.nlattr_max,
+					  attr,
+					  l4proto->ctnl_timeout.nla_policy,
+					  NULL);
 	if (ret < 0)
 		goto err;
 
@@ -901,7 +903,7 @@ static void nft_ct_timeout_obj_destroy(const struct nft_ctx *ctx,
 	nf_ct_untimeout(ctx->net, timeout);
 	nf_ct_l4proto_put(timeout->l4proto);
 	nf_ct_netns_put(ctx->net, ctx->family);
-	kfree(priv->timeout);
+	kfree_rcu(priv->timeout, rcu);
 }
 
 static int nft_ct_timeout_obj_dump(struct sk_buff *skb,
@@ -916,7 +918,7 @@ static int nft_ct_timeout_obj_dump(struct sk_buff *skb,
 	    nla_put_be16(skb, NFTA_CT_TIMEOUT_L3PROTO, htons(timeout->l3num)))
 		return -1;
 
-	nest_params = nla_nest_start(skb, NFTA_CT_TIMEOUT_DATA | NLA_F_NESTED);
+	nest_params = nla_nest_start(skb, NFTA_CT_TIMEOUT_DATA);
 	if (!nest_params)
 		return -1;
 

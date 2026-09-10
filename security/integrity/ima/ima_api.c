@@ -12,7 +12,6 @@
  *	Implements must_appraise_or_measure, collect_measurement,
  *	appraise_measurement, store_measurement and store_template.
  */
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -169,6 +168,7 @@ err_out:
  *		subj=, obj=, type=, func=, mask=, fsmagic=
  *	subj,obj, and type: are LSM specific.
  *	func: FILE_CHECK | BPRM_CHECK | CREDS_CHECK | MMAP_CHECK | MODULE_CHECK
+ *	| KEXEC_CMDLINE
  *	mask: contains the permission mask
  *	fsmagic: hex value
  *

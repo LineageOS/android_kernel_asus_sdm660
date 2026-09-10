@@ -756,7 +756,7 @@ static const struct preview_update update_attrs[] = {
 		preview_config_luma_enhancement,
 		preview_enable_luma_enhancement,
 		offsetof(struct prev_params, luma),
-		FIELD_SIZEOF(struct prev_params, luma),
+		sizeof_field(struct prev_params, luma),
 		offsetof(struct omap3isp_prev_update_config, luma),
 	}, /* OMAP3ISP_PREV_INVALAW */ {
 		NULL,
@@ -765,55 +765,55 @@ static const struct preview_update update_attrs[] = {
 		preview_config_hmed,
 		preview_enable_hmed,
 		offsetof(struct prev_params, hmed),
-		FIELD_SIZEOF(struct prev_params, hmed),
+		sizeof_field(struct prev_params, hmed),
 		offsetof(struct omap3isp_prev_update_config, hmed),
 	}, /* OMAP3ISP_PREV_CFA */ {
 		preview_config_cfa,
 		NULL,
 		offsetof(struct prev_params, cfa),
-		FIELD_SIZEOF(struct prev_params, cfa),
+		sizeof_field(struct prev_params, cfa),
 		offsetof(struct omap3isp_prev_update_config, cfa),
 	}, /* OMAP3ISP_PREV_CHROMA_SUPP */ {
 		preview_config_chroma_suppression,
 		preview_enable_chroma_suppression,
 		offsetof(struct prev_params, csup),
-		FIELD_SIZEOF(struct prev_params, csup),
+		sizeof_field(struct prev_params, csup),
 		offsetof(struct omap3isp_prev_update_config, csup),
 	}, /* OMAP3ISP_PREV_WB */ {
 		preview_config_whitebalance,
 		NULL,
 		offsetof(struct prev_params, wbal),
-		FIELD_SIZEOF(struct prev_params, wbal),
+		sizeof_field(struct prev_params, wbal),
 		offsetof(struct omap3isp_prev_update_config, wbal),
 	}, /* OMAP3ISP_PREV_BLKADJ */ {
 		preview_config_blkadj,
 		NULL,
 		offsetof(struct prev_params, blkadj),
-		FIELD_SIZEOF(struct prev_params, blkadj),
+		sizeof_field(struct prev_params, blkadj),
 		offsetof(struct omap3isp_prev_update_config, blkadj),
 	}, /* OMAP3ISP_PREV_RGB2RGB */ {
 		preview_config_rgb_blending,
 		NULL,
 		offsetof(struct prev_params, rgb2rgb),
-		FIELD_SIZEOF(struct prev_params, rgb2rgb),
+		sizeof_field(struct prev_params, rgb2rgb),
 		offsetof(struct omap3isp_prev_update_config, rgb2rgb),
 	}, /* OMAP3ISP_PREV_COLOR_CONV */ {
 		preview_config_csc,
 		NULL,
 		offsetof(struct prev_params, csc),
-		FIELD_SIZEOF(struct prev_params, csc),
+		sizeof_field(struct prev_params, csc),
 		offsetof(struct omap3isp_prev_update_config, csc),
 	}, /* OMAP3ISP_PREV_YC_LIMIT */ {
 		preview_config_yc_range,
 		NULL,
 		offsetof(struct prev_params, yclimit),
-		FIELD_SIZEOF(struct prev_params, yclimit),
+		sizeof_field(struct prev_params, yclimit),
 		offsetof(struct omap3isp_prev_update_config, yclimit),
 	}, /* OMAP3ISP_PREV_DEFECT_COR */ {
 		preview_config_dcor,
 		preview_enable_dcor,
 		offsetof(struct prev_params, dcor),
-		FIELD_SIZEOF(struct prev_params, dcor),
+		sizeof_field(struct prev_params, dcor),
 		offsetof(struct omap3isp_prev_update_config, dcor),
 	}, /* Previously OMAP3ISP_PREV_GAMMABYPASS, not used anymore */ {
 		NULL,
@@ -831,13 +831,13 @@ static const struct preview_update update_attrs[] = {
 		preview_config_noisefilter,
 		preview_enable_noisefilter,
 		offsetof(struct prev_params, nf),
-		FIELD_SIZEOF(struct prev_params, nf),
+		sizeof_field(struct prev_params, nf),
 		offsetof(struct omap3isp_prev_update_config, nf),
 	}, /* OMAP3ISP_PREV_GAMMA */ {
 		preview_config_gammacorrn,
 		preview_enable_gammacorrn,
 		offsetof(struct prev_params, gamma),
-		FIELD_SIZEOF(struct prev_params, gamma),
+		sizeof_field(struct prev_params, gamma),
 		offsetof(struct omap3isp_prev_update_config, gamma),
 	}, /* OMAP3ISP_PREV_CONTRAST */ {
 		preview_config_contrast,
@@ -1742,22 +1742,17 @@ static void preview_try_format(struct isp_prev_device *prev,
 
 	switch (pad) {
 	case PREV_PAD_SINK:
-		/* When reading data from the CCDC, the input size has already
-		 * been mangled by the CCDC output pad so it can be accepted
-		 * as-is.
-		 *
-		 * When reading data from memory, clamp the requested width and
-		 * height. The TRM doesn't specify a minimum input height, make
+		/*
+		 * Clamp the requested width and height.
+		 * The TRM doesn't specify a minimum input height, make
 		 * sure we got enough lines to enable the noise filter and color
 		 * filter array interpolation.
 		 */
-		if (prev->input == PREVIEW_INPUT_MEMORY) {
-			fmt->width = clamp_t(u32, fmt->width, PREV_MIN_IN_WIDTH,
-					     preview_max_out_width(prev));
-			fmt->height = clamp_t(u32, fmt->height,
-					      PREV_MIN_IN_HEIGHT,
-					      PREV_MAX_IN_HEIGHT);
-		}
+		fmt->width = clamp_t(u32, fmt->width, PREV_MIN_IN_WIDTH,
+				     preview_max_out_width(prev));
+		fmt->height = clamp_t(u32, fmt->height,
+				      PREV_MIN_IN_HEIGHT,
+				      PREV_MAX_IN_HEIGHT);
 
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
 

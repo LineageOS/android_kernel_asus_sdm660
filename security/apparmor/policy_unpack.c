@@ -297,6 +297,19 @@ fail:
 	return 0;
 }
 
+static bool unpack_u8(struct aa_ext *e, u8 *data, const char *name)
+{
+	if (unpack_nameX(e, AA_U8, name)) {
+		if (!inbounds(e, sizeof(u8)))
+			return 0;
+		if (data)
+			*data = get_unaligned((u8 *)e->pos);
+		e->pos += sizeof(u8);
+		return 1;
+	}
+	return 0;
+}
+
 static bool unpack_u32(struct aa_ext *e, u32 *data, const char *name)
 {
 	void *pos = e->pos;
@@ -555,6 +568,49 @@ fail:
 	return 0;
 }
 
+static bool unpack_secmark(struct aa_ext *e, struct aa_profile *profile)
+{
+	void *pos = e->pos;
+	int i, size;
+
+	if (unpack_nameX(e, AA_STRUCT, "secmark")) {
+		size = unpack_array(e, NULL);
+
+		profile->secmark = kcalloc(size, sizeof(struct aa_secmark),
+					   GFP_KERNEL);
+		if (!profile->secmark)
+			goto fail;
+
+		profile->secmark_count = size;
+
+		for (i = 0; i < size; i++) {
+			if (!unpack_u8(e, &profile->secmark[i].audit, NULL))
+				goto fail;
+			if (!unpack_u8(e, &profile->secmark[i].deny, NULL))
+				goto fail;
+			if (!unpack_strdup(e, &profile->secmark[i].label, NULL))
+				goto fail;
+		}
+		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
+			goto fail;
+		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
+			goto fail;
+	}
+
+	return 1;
+
+fail:
+	if (profile->secmark) {
+		for (i = 0; i < size; i++)
+			kfree(profile->secmark[i].label);
+		kfree(profile->secmark);
+		profile->secmark_count = 0;
+	}
+
+	e->pos = pos;
+	return 0;
+}
+
 static bool unpack_rlimits(struct aa_ext *e, struct aa_profile *profile)
 {
 	void *pos = e->pos;
@@ -757,7 +813,14 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		goto fail;
 	}
 
+	if (!unpack_secmark(e, profile)) {
+		info = "failed to unpack profile secmark rules";
+		goto fail;
+	}
+
 	if (unpack_nameX(e, AA_STRUCT, "policydb")) {
+		size_t state_count;
+
 		/* generic policy dfa - optional and may be NULL */
 		info = "failed to unpack policydb";
 		profile->policy.dfa = unpack_dfa(e);
@@ -769,9 +832,17 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			error = -EPROTO;
 			goto fail;
 		}
-		if (!unpack_u32(e, &profile->policy.start[0], "start"))
+		if (!unpack_u32(e, &profile->policy.start[0], "start")) {
 			/* default start state */
 			profile->policy.start[0] = DFA_START;
+		}
+
+		state_count = profile->policy.dfa->tables[YYTD_ID_BASE]->td_lolen;
+		if (profile->policy.start[0] >= state_count) {
+			info = "invalid dfa start state";
+			goto fail;
+		}
+
 		/* setup class index */
 		for (i = AA_CLASS_FILE; i <= AA_CLASS_LAST; i++) {
 			profile->policy.start[i] =
@@ -792,9 +863,19 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		info = "failed to unpack profile file rules";
 		goto fail;
 	} else if (profile->file.dfa) {
-		if (!unpack_u32(e, &profile->file.start, "dfa_start"))
+		size_t state_count;
+
+		if (!unpack_u32(e, &profile->file.start, "dfa_start")) {
 			/* default start state */
 			profile->file.start = DFA_START;
+		}
+
+		state_count = profile->file.dfa->tables[YYTD_ID_BASE]->td_lolen;
+
+		if (profile->file.start >= state_count) {
+			info = "invalid dfa start state";
+			goto fail;
+		}
 	} else if (profile->policy.dfa &&
 		   profile->policy.start[AA_CLASS_FILE]) {
 		profile->file.dfa = aa_get_dfa(profile->policy.dfa);
@@ -881,7 +962,6 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 {
 	int error = -EPROTONOSUPPORT;
 	const char *name = NULL;
-	*ns = NULL;
 
 	/* get the interface version */
 	if (!unpack_u32(e, &e->version, "version")) {

@@ -79,6 +79,7 @@
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
@@ -369,19 +370,22 @@ static const struct xattr_handler *sockfs_xattr_handlers[] = {
 	NULL
 };
 
-static struct dentry *sockfs_mount(struct file_system_type *fs_type,
-			 int flags, const char *dev_name, void *data)
+static int sockfs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo_xattr(fs_type, "socket:", &sockfs_ops,
-				  sockfs_xattr_handlers,
-				  &sockfs_dentry_operations, SOCKFS_MAGIC);
+	struct pseudo_fs_context *ctx = init_pseudo(fc, SOCKFS_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->ops = &sockfs_ops;
+	ctx->dops = &sockfs_dentry_operations;
+	ctx->xattr = sockfs_xattr_handlers;
+	return 0;
 }
 
 static struct vfsmount *sock_mnt __read_mostly;
 
 static struct file_system_type sock_fs_type = {
 	.name =		"sockfs",
-	.mount =	sockfs_mount,
+	.init_fs_context = sockfs_init_fs_context,
 	.kill_sb =	kill_anon_super,
 };
 
@@ -457,17 +461,15 @@ static int sock_map_fd(struct socket *sock, int flags)
 /**
  *	sock_from_file - Return the &socket bounded to @file.
  *	@file: file
- *	@err: pointer to an error code return
  *
- *	On failure returns %NULL and assigns -ENOTSOCK to @err.
+ *	On failure returns %NULL.
  */
 
-struct socket *sock_from_file(struct file *file, int *err)
+struct socket *sock_from_file(struct file *file)
 {
 	if (file->f_op == &socket_file_ops)
 		return file->private_data;	/* set in sock_map_fd */
 
-	*err = -ENOTSOCK;
 	return NULL;
 }
 EXPORT_SYMBOL(sock_from_file);
@@ -496,9 +498,11 @@ struct socket *sockfd_lookup(int fd, int *err)
 		return NULL;
 	}
 
-	sock = sock_from_file(file, err);
-	if (!sock)
+	sock = sock_from_file(file);
+	if (!sock) {
+		*err = -ENOTSOCK;
 		fput(file);
+	}
 	return sock;
 }
 EXPORT_SYMBOL(sockfd_lookup);
@@ -510,11 +514,12 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 
 	*err = -EBADF;
 	if (f.file) {
-		sock = sock_from_file(f.file, err);
+		sock = sock_from_file(f.file);
 		if (likely(sock)) {
 			*fput_needed = f.flags & FDPUT_FPUT;
 			return sock;
 		}
+		*err = -ENOTSOCK;
 		fdput(f);
 	}
 	return NULL;
@@ -750,12 +755,13 @@ EXPORT_SYMBOL(kernel_sendmsg_locked);
 
 static bool skb_is_err_queue(const struct sk_buff *skb)
 {
-	/* pkt_type of skbs enqueued on the error queue are set to
-	 * PACKET_OUTGOING in skb_set_err_queue(). This is only safe to do
-	 * in recvmsg, since skbs received on a local socket will never
-	 * have a pkt_type of PACKET_OUTGOING.
+	/* Error-queue skbs are marked as PACKET_OUTGOING in
+	 * skb_set_err_queue() and use the destructor installed by
+	 * sock_queue_err_skb(). PACKET_OUTGOING alone is not unique:
+	 * AF_PACKET outgoing taps use the same pkt_type.
 	 */
-	return skb->pkt_type == PACKET_OUTGOING;
+	return skb->pkt_type == PACKET_OUTGOING &&
+	       skb->destructor == sock_rmem_free;
 }
 
 /* On transmit, software and hardware timestamps are returned independently.
@@ -2045,6 +2051,8 @@ SYSCALL_DEFINE4(recv, int, fd, void __user *, ubuf, size_t, size,
 static int __sys_setsockopt(int fd, int level, int optname,
 			    char __user *optval, int optlen)
 {
+	mm_segment_t oldfs = get_fs();
+	char *kernel_optval = NULL;
 	int err, fput_needed;
 	struct socket *sock;
 
@@ -2057,14 +2065,35 @@ static int __sys_setsockopt(int fd, int level, int optname,
 		if (err)
 			goto out_put;
 
+		err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level,
+						     &optname, optval, &optlen,
+						     &kernel_optval);
+
+		if (err < 0) {
+			goto out_put;
+		} else if (err > 0) {
+			err = 0;
+			goto out_put;
+		}
+
+		if (kernel_optval) {
+			set_fs(KERNEL_DS);
+			optval = (char __user __force *)kernel_optval;
+		}
+
 		if (level == SOL_SOCKET)
 			err =
-			    sock_setsockopt(sock, level, optname, optval,
+			    sock_setsockopt(sock, level, optname, USER_SOCKPTR(optval),
 					    optlen);
 		else
 			err =
 			    sock->ops->setsockopt(sock, level, optname, optval,
 						  optlen);
+
+		if (kernel_optval) {
+			set_fs(oldfs);
+			kfree(kernel_optval);
+		}
 out_put:
 		fput_light(sock->file, fput_needed);
 	}
@@ -2077,6 +2106,9 @@ SYSCALL_DEFINE5(setsockopt, int, fd, int, level, int, optname,
 	return __sys_setsockopt(fd, level, optname, optval, optlen);
 }
 
+INDIRECT_CALLABLE_DECLARE(bool tcp_bpf_bypass_getsockopt(int level,
+							 int optname));
+
 /*
  *	Get a socket option. Because we don't know the option lengths we have
  *	to pass a user mode parameter for the protocols to sort out.
@@ -2087,12 +2119,15 @@ static int __sys_getsockopt(int fd, int level, int optname,
 {
 	int err, fput_needed;
 	struct socket *sock;
+	int max_optlen;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock != NULL) {
 		err = security_socket_getsockopt(sock, level, optname);
 		if (err)
 			goto out_put;
+
+		max_optlen = BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen);
 
 		if (level == SOL_SOCKET)
 			err =
@@ -2102,6 +2137,10 @@ static int __sys_getsockopt(int fd, int level, int optname,
 			err =
 			    sock->ops->getsockopt(sock, level, optname, optval,
 						  optlen);
+
+		err = BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock->sk, level, optname,
+						     optval, optlen,
+						     max_optlen, err);
 out_put:
 		fput_light(sock->file, fput_needed);
 	}
@@ -3620,7 +3659,7 @@ int kernel_setsockopt(struct socket *sock, int level, int optname,
 
 	set_fs(KERNEL_DS);
 	if (level == SOL_SOCKET)
-		err = sock_setsockopt(sock, level, optname, uoptval, optlen);
+		err = sock_setsockopt(sock, level, optname, USER_SOCKPTR(uoptval), optlen);
 	else
 		err = sock->ops->setsockopt(sock, level, optname, uoptval,
 					    optlen);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RDMA resource limiting controller for cgroups.
  *
@@ -5,10 +6,6 @@
  * additional RDMA resources after a certain limit is reached.
  *
  * Copyright (C) 2016 Parav Pandit <pandit.parav@gmail.com>
- *
- * This file is subject to the terms and conditions of version 2 of the GNU
- * General Public License. See the file COPYING in the main directory of the
- * Linux distribution for more details.
  */
 
 #include <linux/bitops.h>
@@ -284,7 +281,7 @@ int rdmacg_try_charge(struct rdma_cgroup **rdmacg,
 			ret = PTR_ERR(rpool);
 			goto err;
 		} else {
-			new = rpool->resources[index].usage + 1;
+			new = (s64)rpool->resources[index].usage + 1;
 			if (new > rpool->resources[index].max) {
 				ret = -EAGAIN;
 				goto err;

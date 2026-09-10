@@ -147,7 +147,9 @@ static void tipc_net_finalize_work(struct work_struct *work)
 	struct tipc_net_work *fwork;
 
 	fwork = container_of(work, struct tipc_net_work, work);
+	rtnl_lock();
 	tipc_net_finalize(fwork->net, fwork->addr);
+	rtnl_unlock();
 	kfree(fwork);
 }
 
@@ -189,7 +191,7 @@ static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_NET);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_NET);
 	if (!attrs)
 		goto msg_full;
 
@@ -247,9 +249,9 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_NET])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_NET_MAX,
-			       info->attrs[TIPC_NLA_NET], tipc_nl_net_policy,
-			       info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_NET_MAX,
+					  info->attrs[TIPC_NLA_NET],
+					  tipc_nl_net_policy, info->extack);
 
 	if (err)
 		return err;

@@ -1195,12 +1195,10 @@ out:
 static const struct file_operations ion_fops = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = ion_ioctl,
-#ifdef CONFIG_COMPAT
 #ifdef CONFIG_ION_LEGACY
 	.compat_ioctl	= compat_ion_ioctl,
 #else
-	.compat_ioctl	= ion_ioctl,
-#endif
+	.compat_ioctl	= compat_ptr_ioctl,
 #endif
 };
 

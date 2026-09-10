@@ -879,7 +879,7 @@ static void __team_queue_override_enabled_check(struct team *team)
 static void team_queue_override_port_prio_changed(struct team *team,
 						  struct team_port *port)
 {
-	if (!port->queue_id || team_port_enabled(port))
+	if (!port->queue_id || !team_port_enabled(port))
 		return;
 	__team_queue_override_port_del(team, port);
 	__team_queue_override_port_add(team, port);
@@ -1175,6 +1175,13 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		return -EBUSY;
 	}
 
+	if (netdev_has_upper_dev(port_dev, dev)) {
+		NL_SET_ERR_MSG(extack, "Device is already a lower device of the team interface");
+		netdev_err(dev, "Device %s is already a lower device of the team interface\n",
+			   portname);
+		return -EBUSY;
+	}
+
 	if (port_dev->features & NETIF_F_VLAN_CHALLENGED &&
 	    vlan_uses_dev(dev)) {
 		NL_SET_ERR_MSG(extack, "Device is VLAN challenged and team device has VLAN set up");
@@ -1182,10 +1189,6 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 			   portname);
 		return -EPERM;
 	}
-
-	err = team_dev_type_check_change(dev, port_dev);
-	if (err)
-		return err;
 
 	if (port_dev->flags & IFF_UP) {
 		NL_SET_ERR_MSG(extack, "Device is up. Set it down before adding it as a team port");
@@ -1204,10 +1207,16 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 	INIT_LIST_HEAD(&port->qom_list);
 
 	port->orig.mtu = port_dev->mtu;
-	err = dev_set_mtu(port_dev, dev->mtu);
-	if (err) {
-		netdev_dbg(dev, "Error %d calling dev_set_mtu\n", err);
-		goto err_set_mtu;
+	/*
+	 * MTU assignment will be handled in team_dev_type_check_change
+	 * if dev and port_dev are of different types
+	 */
+	if (dev->type == port_dev->type) {
+		err = dev_set_mtu(port_dev, dev->mtu);
+		if (err) {
+			netdev_dbg(dev, "Error %d calling dev_set_mtu\n", err);
+			goto err_set_mtu;
+		}
 	}
 
 	memcpy(port->orig.dev_addr, port_dev->dev_addr, port_dev->addr_len);
@@ -1282,6 +1291,10 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		}
 	}
 
+	err = team_dev_type_check_change(dev, port_dev);
+	if (err)
+		goto err_set_dev_type;
+
 	if (dev->flags & IFF_UP) {
 		netif_addr_lock_bh(dev);
 		dev_uc_sync_multiple(port_dev, dev);
@@ -1300,6 +1313,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 
 	return 0;
 
+err_set_dev_type:
 err_set_slave_promisc:
 	__team_option_inst_del_port(team, port);
 
@@ -2339,7 +2353,7 @@ static int team_nl_fill_one_option_get(struct sk_buff *skb, struct team *team,
 	if (err)
 		return err;
 
-	option_item = nla_nest_start(skb, TEAM_ATTR_ITEM_OPTION);
+	option_item = nla_nest_start_noflag(skb, TEAM_ATTR_ITEM_OPTION);
 	if (!option_item)
 		return -EMSGSIZE;
 
@@ -2453,7 +2467,7 @@ start_again:
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;
-	option_list = nla_nest_start(skb, TEAM_ATTR_LIST_OPTION);
+	option_list = nla_nest_start_noflag(skb, TEAM_ATTR_LIST_OPTION);
 	if (!option_list)
 		goto nla_put_failure;
 
@@ -2559,9 +2573,11 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			err = -EINVAL;
 			goto team_put;
 		}
-		err = nla_parse_nested(opt_attrs, TEAM_ATTR_OPTION_MAX,
-				       nl_option, team_nl_option_policy,
-				       info->extack);
+		err = nla_parse_nested_deprecated(opt_attrs,
+						  TEAM_ATTR_OPTION_MAX,
+						  nl_option,
+						  team_nl_option_policy,
+						  info->extack);
 		if (err)
 			goto team_put;
 		if (!opt_attrs[TEAM_ATTR_OPTION_NAME] ||
@@ -2628,7 +2644,9 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 				ctx.data.u32_val = nla_get_u32(attr_data);
 				break;
 			case TEAM_OPTION_TYPE_STRING:
-				if (nla_len(attr_data) > TEAM_STRING_MAX_LEN) {
+				if (nla_len(attr_data) > TEAM_STRING_MAX_LEN ||
+				    !memchr(nla_data(attr_data), '\0',
+					    nla_len(attr_data))) {
 					err = -EINVAL;
 					goto team_put;
 				}
@@ -2675,7 +2693,7 @@ static int team_nl_fill_one_port_get(struct sk_buff *skb,
 {
 	struct nlattr *port_item;
 
-	port_item = nla_nest_start(skb, TEAM_ATTR_ITEM_PORT);
+	port_item = nla_nest_start_noflag(skb, TEAM_ATTR_ITEM_PORT);
 	if (!port_item)
 		goto nest_cancel;
 	if (nla_put_u32(skb, TEAM_ATTR_PORT_IFINDEX, port->dev->ifindex))
@@ -2730,7 +2748,7 @@ start_again:
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;
-	port_list = nla_nest_start(skb, TEAM_ATTR_LIST_PORT);
+	port_list = nla_nest_start_noflag(skb, TEAM_ATTR_LIST_PORT);
 	if (!port_list)
 		goto nla_put_failure;
 

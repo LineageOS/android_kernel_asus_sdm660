@@ -255,6 +255,13 @@ void rcu_bh_qs(void)
 	}
 }
 
+void rcu_softirq_qs(void)
+{
+	rcu_sched_qs();
+	rcu_preempt_qs();
+	rcu_preempt_deferred_qs(current);
+}
+
 /*
  * Steal a bit from the bottom of ->dynticks for idle entry/exit
  * control.  Initially this is for TLB flushing.
@@ -422,6 +429,7 @@ static void rcu_momentary_dyntick_idle(void)
 	special = atomic_add_return(2 * RCU_DYNTICK_CTRL_CTR, &rdtp->dynticks);
 	/* It is illegal to call this from idle state. */
 	WARN_ON_ONCE(!(special & RCU_DYNTICK_CTRL_CTR));
+	rcu_preempt_deferred_qs(current);
 }
 
 /*
@@ -729,6 +737,7 @@ static void rcu_eqs_enter(bool user)
 		do_nocb_deferred_wakeup(rdp);
 	}
 	rcu_prepare_for_idle();
+	rcu_preempt_deferred_qs(current);
 	WRITE_ONCE(rdtp->dynticks_nesting, 0); /* Avoid irq-access tearing. */
 	rcu_dynticks_eqs_enter();
 	rcu_dynticks_task_enter();
@@ -1263,6 +1272,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 		    !rdp->rcu_iw_pending && rdp->rcu_iw_gp_seq != rnp->gp_seq &&
 		    (rnp->ffmask & rdp->grpmask)) {
 			init_irq_work(&rdp->rcu_iw, rcu_iw_handler);
+			atomic_set(&rdp->rcu_iw.flags, IRQ_WORK_HARD_IRQ);
 			rdp->rcu_iw_pending = true;
 			rdp->rcu_iw_gp_seq = rnp->gp_seq;
 			irq_work_queue_on(&rdp->rcu_iw, rdp->cpu);
@@ -2845,6 +2855,12 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 
 	WARN_ON_ONCE(!rdp->beenonline);
 
+	/* Report any deferred quiescent states if preemption enabled. */
+	if (!(preempt_count() & PREEMPT_MASK))
+		rcu_preempt_deferred_qs(current);
+	else if (rcu_preempt_need_deferred_qs(current))
+		resched_cpu(rdp->cpu); /* Provoke future context switch. */
+
 	/* Update RCU state based on any recent quiescent states. */
 	rcu_check_quiescent_state(rsp, rdp);
 
@@ -3818,6 +3834,7 @@ void rcu_report_dead(unsigned int cpu)
 	rcu_report_exp_rdp(&rcu_sched_state,
 			   this_cpu_ptr(rcu_sched_state.rda), true);
 	preempt_enable();
+	rcu_preempt_deferred_qs(current);
 	for_each_rcu_flavor(rsp)
 		rcu_cleanup_dying_idle_cpu(cpu, rsp);
 

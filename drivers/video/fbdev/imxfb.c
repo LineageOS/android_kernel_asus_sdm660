@@ -993,8 +993,13 @@ static int imxfb_probe(struct platform_device *pdev)
 
 
 	INIT_LIST_HEAD(&info->modelist);
-	for (i = 0; i < fbi->num_modes; i++)
-		fb_add_videomode(&fbi->mode[i].mode, &info->modelist);
+	for (i = 0; i < fbi->num_modes; i++) {
+		ret = fb_add_videomode(&fbi->mode[i].mode, &info->modelist);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to add videomode\n");
+			goto failed_cmap;
+		}
+	}
 
 	/*
 	 * This makes sure that our colour bitfield
@@ -1018,7 +1023,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	}
 
 	fbi->lcd_pwr = devm_regulator_get(&pdev->dev, "lcd");
-	if (IS_ERR(fbi->lcd_pwr) && (PTR_ERR(fbi->lcd_pwr) == -EPROBE_DEFER)) {
+	if (PTR_ERR(fbi->lcd_pwr) == -EPROBE_DEFER) {
 		ret = -EPROBE_DEFER;
 		goto failed_lcd;
 	}

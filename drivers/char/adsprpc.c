@@ -1024,6 +1024,12 @@ static int fastrpc_mmap_create(struct fastrpc_file *fl, int fd,
 		map->size = len;
 		map->va = (uintptr_t)region_vaddr;
 	} else if (mflags == FASTRPC_DMAHANDLE_NOMAP) {
+		if (map->attr & FASTRPC_ATTR_KEEP_MAP) {
+			pr_err("adsprpc: %s: Invalid attribute 0x%x for fd %d\n",
+				__func__, map->attr, fd);
+			err = -EINVAL;
+			goto bail;
+		}
 		VERIFY(err, !IS_ERR_OR_NULL(map->buf = dma_buf_get(fd)));
 		if (err)
 			goto bail;
@@ -1878,15 +1884,15 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 			if (map->attr & FASTRPC_ATTR_NOVA) {
 				offset = 0;
 			} else {
-				down_read(&current->mm->mmap_sem);
+				down_read(&current->mm->mmap_lock);
 				VERIFY(err, NULL != (vma = find_vma(current->mm,
 								map->va)));
 				if (err) {
-					up_read(&current->mm->mmap_sem);
+					up_read(&current->mm->mmap_lock);
 					goto bail;
 				}
 				offset = buf_page_start(buf) - vma->vm_start;
-				up_read(&current->mm->mmap_sem);
+				up_read(&current->mm->mmap_lock);
 				VERIFY(err,
 					offset + len <= (uintptr_t)map->size);
 				if (err)
@@ -2010,11 +2016,11 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 					uint64_t flush_len;
 					struct vm_area_struct *vma;
 
-					down_read(&current->mm->mmap_sem);
+					down_read(&current->mm->mmap_lock);
 					VERIFY(err, NULL != (vma = find_vma(
 						current->mm, rpra[i].buf.pv)));
 					if (err) {
-						up_read(&current->mm->mmap_sem);
+						up_read(&current->mm->mmap_lock);
 						goto bail;
 					}
 					if (ctx->overps[oix]->do_cmo) {
@@ -2029,7 +2035,7 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 						ctx->overps[oix]->mend -
 						ctx->overps[oix]->mstart;
 					}
-					up_read(&current->mm->mmap_sem);
+					up_read(&current->mm->mmap_lock);
 					dma_buf_begin_cpu_access_partial(
 						map->buf, DMA_TO_DEVICE, offset,
 						flush_len);
@@ -2173,12 +2179,12 @@ static void inv_args(struct smq_invoke_ctx *ctx)
 					uint64_t inv_len;
 					struct vm_area_struct *vma;
 
-					down_read(&current->mm->mmap_sem);
+					mmap_read_lock(current->mm);
 					VERIFY(err, NULL != (vma = find_vma(
 						current->mm,
 						rpra[over].buf.pv)));
 					if (err) {
-						up_read(&current->mm->mmap_sem);
+						mmap_read_unlock(current->mm);
 						goto bail;
 					}
 					if (ctx->overps[i]->do_cmo) {
@@ -2193,7 +2199,7 @@ static void inv_args(struct smq_invoke_ctx *ctx)
 							ctx->overps[i]->mend -
 							ctx->overps[i]->mstart;
 					}
-					up_read(&current->mm->mmap_sem);
+					mmap_read_unlock(current->mm);
 					dma_buf_begin_cpu_access_partial(
 						map->buf, DMA_TO_DEVICE, offset,
 						inv_len);
@@ -5252,6 +5258,7 @@ static int fastrpc_probe(struct platform_device *pdev)
 	struct device_node *ion_node, *node;
 	struct platform_device *ion_pdev;
 	struct cma *cma;
+	uint32_t vmid_ssc_q6;
 	uint32_t val;
 	int ret = 0;
 	uint32_t secure_domains;
@@ -5284,6 +5291,9 @@ static int fastrpc_probe(struct platform_device *pdev)
 					"qcom,msm-fastrpc-legacy-compute-cb"))
 		return fastrpc_cb_legacy_probe(dev);
 
+	if (of_property_read_u32(dev->of_node, "qcom,vmid-ssc-q6", &vmid_ssc_q6))
+		vmid_ssc_q6 = VMID_SSC_Q6;
+
 	if (of_device_is_compatible(dev->of_node,
 					"qcom,msm-adsprpc-mem-region")) {
 		me->dev = dev;
@@ -5309,7 +5319,7 @@ static int fastrpc_probe(struct platform_device *pdev)
 		if (range.addr && !of_property_read_bool(dev->of_node,
 							 "restrict-access")) {
 			int srcVM[1] = {VMID_HLOS};
-			int destVM[4] = {VMID_HLOS, VMID_MSS_MSA, VMID_SSC_Q6,
+			int destVM[4] = {VMID_HLOS, VMID_MSS_MSA, vmid_ssc_q6,
 						VMID_ADSP_Q6};
 			int destVMperm[4] = {PERM_READ | PERM_WRITE | PERM_EXEC,
 				PERM_READ | PERM_WRITE | PERM_EXEC,

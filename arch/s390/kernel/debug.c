@@ -836,7 +836,7 @@ static int debug_active = 1;
  * if debug_active is already off
  */
 static int s390dbf_procactive(struct ctl_table *table, int write,
-			      void __user *buffer, size_t *lenp, loff_t *ppos)
+			      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!write || debug_stoppable || !debug_active)
 		return proc_dointvec(table, write, buffer, lenp, ppos);
@@ -1119,6 +1119,9 @@ static inline char *debug_get_user_string(const char __user *user_buf,
 {
 	char *buffer;
 
+	if (!user_len)
+		return ERR_PTR(-EINVAL);
+
 	buffer = kmalloc(user_len + 1, GFP_KERNEL);
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
@@ -1294,6 +1297,11 @@ static int debug_input_flush_fn(debug_info_t *id, struct debug_view *view,
 {
 	char input_buf[1];
 	int rc = user_len;
+
+	if (!user_len) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	if (user_len > 0x10000)
 		user_len = 0x10000;

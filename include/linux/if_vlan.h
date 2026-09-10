@@ -68,7 +68,6 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 #define VLAN_PRIO_MASK		0xe000 /* Priority Code Point */
 #define VLAN_PRIO_SHIFT		13
 #define VLAN_CFI_MASK		0x1000 /* Canonical Format Indicator */
-#define VLAN_TAG_PRESENT	VLAN_CFI_MASK
 #define VLAN_VID_MASK		0x0fff /* VLAN Identifier */
 #define VLAN_N_VID		4096
 
@@ -80,8 +79,8 @@ static inline bool is_vlan_dev(const struct net_device *dev)
         return dev->priv_flags & IFF_802_1Q_VLAN;
 }
 
-#define skb_vlan_tag_present(__skb)	((__skb)->vlan_tci & VLAN_TAG_PRESENT)
-#define skb_vlan_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
+#define skb_vlan_tag_present(__skb)	((__skb)->vlan_present)
+#define skb_vlan_tag_get(__skb)		((__skb)->vlan_tci)
 #define skb_vlan_tag_get_id(__skb)	((__skb)->vlan_tci & VLAN_VID_MASK)
 #define skb_vlan_tag_get_prio(__skb)	((__skb)->vlan_tci & VLAN_PRIO_MASK)
 
@@ -240,19 +239,19 @@ __vlan_find_dev_deep_rcu(struct net_device *real_dev,
 
 static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 {
-	BUG();
+	WARN_ON_ONCE(1);
 	return NULL;
 }
 
 static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
 {
-	BUG();
+	WARN_ON_ONCE(1);
 	return 0;
 }
 
 static inline __be16 vlan_dev_vlan_proto(const struct net_device *dev)
 {
-	BUG();
+	WARN_ON_ONCE(1);
 	return 0;
 }
 
@@ -463,6 +462,31 @@ static inline struct sk_buff *vlan_insert_tag_set_proto(struct sk_buff *skb,
 	return skb;
 }
 
+/**
+ * __vlan_hwaccel_clear_tag - clear hardware accelerated VLAN info
+ * @skb: skbuff to clear
+ *
+ * Clears the VLAN information from @skb
+ */
+static inline void __vlan_hwaccel_clear_tag(struct sk_buff *skb)
+{
+	skb->vlan_present = 0;
+}
+
+/**
+ * __vlan_hwaccel_copy_tag - copy hardware accelerated VLAN info from another skb
+ * @dst: skbuff to copy to
+ * @src: skbuff to copy from
+ *
+ * Copies VLAN information from @src to @dst (for branchless code)
+ */
+static inline void __vlan_hwaccel_copy_tag(struct sk_buff *dst, const struct sk_buff *src)
+{
+	dst->vlan_present = src->vlan_present;
+	dst->vlan_proto = src->vlan_proto;
+	dst->vlan_tci = src->vlan_tci;
+}
+
 /*
  * __vlan_hwaccel_push_inside - pushes vlan tag to the payload
  * @skb: skbuff to tag
@@ -477,7 +501,7 @@ static inline struct sk_buff *__vlan_hwaccel_push_inside(struct sk_buff *skb)
 	skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
 					skb_vlan_tag_get(skb));
 	if (likely(skb))
-		skb->vlan_tci = 0;
+		__vlan_hwaccel_clear_tag(skb);
 	return skb;
 }
 
@@ -493,7 +517,8 @@ static inline void __vlan_hwaccel_put_tag(struct sk_buff *skb,
 					  __be16 vlan_proto, u16 vlan_tci)
 {
 	skb->vlan_proto = vlan_proto;
-	skb->vlan_tci = VLAN_TAG_PRESENT | vlan_tci;
+	skb->vlan_tci = vlan_tci;
+	skb->vlan_present = 1;
 }
 
 /**
@@ -555,13 +580,16 @@ static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
  * vlan_get_protocol - get protocol EtherType.
  * @skb: skbuff to query
  * @type: first vlan protocol
+ * @mac_offset: MAC offset
  * @depth: buffer to store length of eth and vlan tags in bytes
  *
  * Returns the EtherType of the packet, regardless of whether it is
  * vlan encapsulated (normal or hardware accelerated) or not.
  */
-static inline __be16 __vlan_get_protocol(const struct sk_buff *skb, __be16 type,
-					 int *depth)
+static inline __be16 __vlan_get_protocol_offset(const struct sk_buff *skb,
+						__be16 type,
+						int mac_offset,
+						int *depth)
 {
 	unsigned int vlan_depth = skb->mac_len, parse_depth = VLAN_MAX_DEPTH;
 
@@ -580,7 +608,8 @@ static inline __be16 __vlan_get_protocol(const struct sk_buff *skb, __be16 type,
 		do {
 			struct vlan_hdr vhdr, *vh;
 
-			vh = skb_header_pointer(skb, vlan_depth, sizeof(vhdr), &vhdr);
+			vh = skb_header_pointer(skb, mac_offset + vlan_depth,
+						sizeof(vhdr), &vhdr);
 			if (unlikely(!vh || !--parse_depth))
 				return 0;
 
@@ -593,6 +622,12 @@ static inline __be16 __vlan_get_protocol(const struct sk_buff *skb, __be16 type,
 		*depth = vlan_depth;
 
 	return type;
+}
+
+static inline __be16 __vlan_get_protocol(const struct sk_buff *skb, __be16 type,
+					 int *depth)
+{
+	return __vlan_get_protocol_offset(skb, type, 0, depth);
 }
 
 /**

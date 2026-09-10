@@ -69,6 +69,7 @@ struct file_handle;
 struct sigaltstack;
 struct rseq;
 union bpf_attr;
+struct clone_args;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -346,6 +347,11 @@ asmlinkage long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
 				int maxevents, int timeout,
 				const sigset_t __user *sigmask,
 				size_t sigsetsize);
+asmlinkage long sys_epoll_pwait2(int epfd, struct epoll_event __user *events,
+				 int maxevents,
+				 const struct __kernel_timespec __user *timeout,
+				 const sigset_t __user *sigmask,
+				 size_t sigsetsize);
 
 /* fs/fcntl.c */
 asmlinkage long sys_dup(unsigned int fildes);
@@ -423,6 +429,8 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group);
 asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 			   umode_t mode);
 asmlinkage long sys_close(unsigned int fd);
+asmlinkage long sys_close_range(unsigned int fd, unsigned int max_fd,
+				unsigned int flags);
 asmlinkage long sys_vhangup(void);
 
 /* fs/pipe.c */
@@ -779,6 +787,9 @@ asmlinkage long sys_clone(unsigned long, unsigned long, int __user *,
 	       int __user *, unsigned long);
 #endif
 #endif
+
+asmlinkage long sys_clone3(struct clone_args __user *uargs, size_t size);
+
 asmlinkage long sys_execve(const char __user *filename,
 		const char __user *const __user *argv,
 		const char __user *const __user *envp);

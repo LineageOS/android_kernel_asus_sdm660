@@ -7,6 +7,10 @@
 	};
 };
 
+&msm_audio_ion {
+	qcom,iommu-dma-addr-pool = <0x10000000 0x10000000>;
+};
+
 &q6core {
 	int_codec: sound {
 		status = "disabled";

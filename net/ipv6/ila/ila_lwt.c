@@ -88,13 +88,15 @@ static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			goto drop;
 		}
 
-		if (ilwt->connected) {
+		/* cache only if we don't create a dst reference loop */
+		if (ilwt->connected && orig_dst->lwtstate != dst->lwtstate) {
 			local_bh_disable();
 			dst_cache_set_ip6(&ilwt->dst_cache, dst, &fl6.saddr);
 			local_bh_enable();
 		}
 	}
 
+	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
 	return dst_output(net, sk, skb);
 
@@ -130,7 +132,7 @@ static const struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 	[ILA_ATTR_HOOK_TYPE] = { .type = NLA_U8, },
 };
 
-static int ila_build_state(struct nlattr *nla,
+static int ila_build_state(struct net *net, struct nlattr *nla,
 			   unsigned int family, const void *cfg,
 			   struct lwtunnel_state **ts,
 			   struct netlink_ext_ack *extack)
@@ -151,7 +153,8 @@ static int ila_build_state(struct nlattr *nla,
 	if (family != AF_INET6)
 		return -EINVAL;
 
-	ret = nla_parse_nested(tb, ILA_ATTR_MAX, nla, ila_nl_policy, extack);
+	ret = nla_parse_nested_deprecated(tb, ILA_ATTR_MAX, nla,
+					  ila_nl_policy, extack);
 	if (ret < 0)
 		return ret;
 

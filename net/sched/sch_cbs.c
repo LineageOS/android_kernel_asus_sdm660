@@ -313,7 +313,7 @@ static void cbs_set_port_rate(struct net_device *dev, struct cbs_sched_data *q)
 {
 	struct ethtool_link_ksettings ecmd;
 	int speed = SPEED_10;
-	int port_rate = -1;
+	s64 port_rate = -1;
 	int err;
 
 	err = __ethtool_get_link_ksettings(dev, &ecmd);
@@ -370,7 +370,8 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt,
 	struct tc_cbs_qopt *qopt;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_CBS_MAX, opt, cbs_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_CBS_MAX, opt, cbs_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -457,7 +458,7 @@ static int cbs_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_cbs_qopt opt = { };
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 

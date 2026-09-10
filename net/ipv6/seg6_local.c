@@ -87,7 +87,12 @@ static struct ipv6_sr_hdr *get_srh(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, srhoff + len))
 		return NULL;
 
-	if (!seg6_validate_srh(srh, len))
+	/* note that pskb_may_pull may change pointers in header;
+	 * for this reason it is necessary to reload them when needed.
+	 */
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+
+	if (!seg6_validate_srh(srh, len, true))
 		return NULL;
 
 	return srh;
@@ -473,7 +478,7 @@ bool seg6_bpf_has_valid_srh(struct sk_buff *skb)
 			return false;
 
 		srh->hdrlen = (u8)(srh_state->hdrlen >> 3);
-		if (!seg6_validate_srh(srh, (srh->hdrlen + 1) << 3))
+		if (!seg6_validate_srh(srh, (srh->hdrlen + 1) << 3, true))
 			return false;
 
 		srh_state->valid = true;
@@ -648,7 +653,7 @@ static int parse_nla_srh(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	if (len < sizeof(*srh) + sizeof(struct in6_addr))
 		return -EINVAL;
 
-	if (!seg6_validate_srh(srh, len))
+	if (!seg6_validate_srh(srh, len, false))
 		return -EINVAL;
 
 	slwt->srh = kmemdup(srh, len, GFP_KERNEL);
@@ -823,8 +828,9 @@ static int parse_nla_bpf(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	int ret;
 	u32 fd;
 
-	ret = nla_parse_nested(tb, SEG6_LOCAL_BPF_PROG_MAX,
-			       attrs[SEG6_LOCAL_BPF], bpf_prog_policy, NULL);
+	ret = nla_parse_nested_deprecated(tb, SEG6_LOCAL_BPF_PROG_MAX,
+					  attrs[SEG6_LOCAL_BPF],
+					  bpf_prog_policy, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -853,7 +859,7 @@ static int put_nla_bpf(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	if (!slwt->bpf.prog)
 		return 0;
 
-	nest = nla_nest_start(skb, SEG6_LOCAL_BPF);
+	nest = nla_nest_start_noflag(skb, SEG6_LOCAL_BPF);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -947,8 +953,9 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	return 0;
 }
 
-static int seg6_local_build_state(struct nlattr *nla, unsigned int family,
-				  const void *cfg, struct lwtunnel_state **ts,
+static int seg6_local_build_state(struct net *net, struct nlattr *nla,
+				  unsigned int family, const void *cfg,
+				  struct lwtunnel_state **ts,
 				  struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[SEG6_LOCAL_MAX + 1];
@@ -959,8 +966,8 @@ static int seg6_local_build_state(struct nlattr *nla, unsigned int family,
 	if (family != AF_INET6)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, SEG6_LOCAL_MAX, nla, seg6_local_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, SEG6_LOCAL_MAX, nla,
+					  seg6_local_policy, extack);
 
 	if (err < 0)
 		return err;

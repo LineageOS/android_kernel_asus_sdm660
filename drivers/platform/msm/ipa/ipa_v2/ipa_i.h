@@ -204,6 +204,7 @@
 #define IPA2_ACTIVE_CLIENTS_LOG_LINE_LEN 96
 #define IPA2_ACTIVE_CLIENTS_LOG_HASHTABLE_SIZE 50
 #define IPA2_ACTIVE_CLIENTS_LOG_NAME_LEN 40
+#define IPA_RULE_CNT_MAX 512
 
 struct ipa2_active_client_htable_entry {
 	struct hlist_node list;
@@ -1744,6 +1745,9 @@ enum ipa_client_type ipa2_get_client_mapping(int pipe_idx);
 enum ipa_rm_resource_name ipa2_get_rm_resource_from_ep(int pipe_idx);
 
 bool ipa2_get_modem_cfg_emb_pipe_flt(void);
+
+int ipa2_get_smmu_params(struct ipa_smmu_in_params *in,
+        struct ipa_smmu_out_params *out);
 
 /* internal functions */
 

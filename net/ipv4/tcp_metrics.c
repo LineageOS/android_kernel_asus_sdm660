@@ -532,16 +532,6 @@ reset:
 
 		inet_csk(sk)->icsk_rto = TCP_TIMEOUT_FALLBACK;
 	}
-	/* Cut cwnd down to 1 per RFC5681 if SYN or SYN-ACK has been
-	 * retransmitted. In light of RFC6298 more aggressive 1sec
-	 * initRTO, we only reset cwnd when more than 1 SYN/SYN-ACK
-	 * retransmission has occurred.
-	 */
-	if (tp->total_retrans > 1)
-		tp->snd_cwnd = 1;
-	else
-		tp->snd_cwnd = tcp_init_cwnd(tp, dst);
-	tp->snd_cwnd_stamp = tcp_jiffies32;
 }
 
 bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst)
@@ -677,7 +667,7 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 	{
 		int n = 0;
 
-		nest = nla_nest_start(msg, TCP_METRICS_ATTR_VALS);
+		nest = nla_nest_start_noflag(msg, TCP_METRICS_ATTR_VALS);
 		if (!nest)
 			goto nla_put_failure;
 		for (i = 0; i < TCP_METRIC_MAX_KERNEL + 1; i++) {

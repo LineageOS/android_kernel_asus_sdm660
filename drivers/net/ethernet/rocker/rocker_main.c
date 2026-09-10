@@ -1526,9 +1526,8 @@ static void rocker_world_port_post_fini(struct rocker_port *rocker_port)
 {
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
-	if (!wops->port_post_fini)
-		return;
-	wops->port_post_fini(rocker_port);
+	if (wops->port_post_fini)
+		wops->port_post_fini(rocker_port);
 	kfree(rocker_port->wpriv);
 }
 
@@ -2214,6 +2213,15 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 	switch (event) {
 	case FIB_EVENT_ENTRY_ADD: /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
+		if (info->family == AF_INET) {
+			struct fib_entry_notifier_info *fen_info = ptr;
+
+			if (fen_info->fi->fib_nh_is_v6) {
+				NL_SET_ERR_MSG_MOD(info->extack, "IPv6 gateway with IPv4 route is not supported");
+				return notifier_from_errno(-EINVAL);
+			}
+		}
+
 		memcpy(&fib_work->fen_info, ptr, sizeof(fib_work->fen_info));
 		/* Take referece on fib_info to prevent it from being
 		 * freed while work is queued. Release it afterwards.
@@ -2535,7 +2543,7 @@ static void rocker_carrier_init(const struct rocker_port *rocker_port)
 	u64 link_status = rocker_read64(rocker, PORT_PHYS_LINK_STATUS);
 	bool link_up;
 
-	link_up = link_status & (1 << rocker_port->pport);
+	link_up = link_status & (1ULL << rocker_port->pport);
 	if (link_up)
 		netif_carrier_on(rocker_port->dev);
 	else

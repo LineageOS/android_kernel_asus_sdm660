@@ -157,10 +157,12 @@ config S390
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
+	select HAVE_MMU_GATHER_NO_GATHER
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NOP_MCOUNT
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
+	select HAVE_RCU_TABLE_FREE
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
@@ -380,7 +382,7 @@ config SYSVIPC_COMPAT
 config SMP
 	def_bool y
 	prompt "Symmetric multi-processing support"
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
 	  you have a system with more than one CPU, say Y.
@@ -689,7 +691,7 @@ menu "I/O subsystem"
 config QDIO
 	def_tristate y
 	prompt "QDIO support"
-	---help---
+	help
 	  This driver provides the Queued Direct I/O base support for
 	  IBM System z.
 

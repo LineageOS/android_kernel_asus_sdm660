@@ -66,7 +66,7 @@ struct bio_slab {
 	struct kmem_cache *slab;
 	unsigned int slab_ref;
 	unsigned int slab_size;
-	char name[8];
+	char name[12];
 };
 static DEFINE_MUTEX(bio_slab_lock);
 static struct bio_slab *bio_slabs;
@@ -1263,7 +1263,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	/*
 	 * success
 	 */
-	if (((iter->type & WRITE) && (!map_data || !map_data->null_mapped)) ||
+	if ((iov_iter_rw(iter) == WRITE && (!map_data || !map_data->null_mapped)) ||
 	    (map_data && map_data->from_user)) {
 		ret = bio_copy_from_iter(bio, iter);
 		if (ret)
@@ -2004,12 +2004,14 @@ EXPORT_SYMBOL(bioset_init_from_src);
 int bio_associate_blkcg_from_page(struct bio *bio, struct page *page)
 {
 	struct cgroup_subsys_state *blkcg_css;
+	struct mem_cgroup *memcg;
 
 	if (unlikely(bio->bi_css))
 		return -EBUSY;
-	if (!page->mem_cgroup)
+	memcg = page_memcg(page);
+	if (!memcg)
 		return 0;
-	blkcg_css = cgroup_get_e_css(page->mem_cgroup->css.cgroup,
+	blkcg_css = cgroup_get_e_css(memcg->css.cgroup,
 				     &io_cgrp_subsys);
 	bio->bi_css = blkcg_css;
 	return 0;

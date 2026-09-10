@@ -1176,7 +1176,7 @@ static struct phy *devm_of_phy_optional_get_index(struct device *dev,
 	phy = devm_of_phy_get(dev, np, name);
 	kfree(name);
 
-	if (IS_ERR(phy) && PTR_ERR(phy) == -ENODEV)
+	if (PTR_ERR(phy) == -ENODEV)
 		phy = NULL;
 
 	return phy;
@@ -1189,7 +1189,7 @@ static int tegra_pcie_port_get_phys(struct tegra_pcie_port *port)
 	unsigned int i;
 	int err;
 
-	port->phys = devm_kcalloc(dev, sizeof(phy), port->lanes, GFP_KERNEL);
+	port->phys = devm_kcalloc(dev, port->lanes, sizeof(phy), GFP_KERNEL);
 	if (!port->phys)
 		return -ENOMEM;
 

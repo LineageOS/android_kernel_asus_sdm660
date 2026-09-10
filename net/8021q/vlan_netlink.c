@@ -35,8 +35,8 @@ static inline int vlan_validate_qos_map(struct nlattr *attr)
 {
 	if (!attr)
 		return 0;
-	return nla_validate_nested(attr, IFLA_VLAN_QOS_MAX, vlan_map_policy,
-				   NULL);
+	return nla_validate_nested_deprecated(attr, IFLA_VLAN_QOS_MAX,
+					      vlan_map_policy, NULL);
 }
 
 static int vlan_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -188,11 +188,16 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 	else if (dev->mtu > max_mtu)
 		return -EINVAL;
 
+	/* Note: If this initial vlan_changelink() fails, we need
+	 * to call vlan_dev_free_egress_priority() to free memory.
+	 */
 	err = vlan_changelink(dev, tb, data, extack);
+
 	if (!err)
 		err = register_vlan_dev(dev, extack);
+
 	if (err)
-		vlan_dev_uninit(dev);
+		vlan_dev_free_egress_priority(dev);
 	return err;
 }
 
@@ -235,7 +240,7 @@ static int vlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			goto nla_put_failure;
 	}
 	if (vlan->nr_ingress_mappings) {
-		nest = nla_nest_start(skb, IFLA_VLAN_INGRESS_QOS);
+		nest = nla_nest_start_noflag(skb, IFLA_VLAN_INGRESS_QOS);
 		if (nest == NULL)
 			goto nla_put_failure;
 
@@ -253,7 +258,7 @@ static int vlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	}
 
 	if (vlan->nr_egress_mappings) {
-		nest = nla_nest_start(skb, IFLA_VLAN_EGRESS_QOS);
+		nest = nla_nest_start_noflag(skb, IFLA_VLAN_EGRESS_QOS);
 		if (nest == NULL)
 			goto nla_put_failure;
 

@@ -795,11 +795,12 @@ void icmp_ndo_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	struct sk_buff *cloned_skb = NULL;
 	struct ip_options opts = { 0 };
 	enum ip_conntrack_info ctinfo;
+	enum ip_conntrack_dir dir;
 	struct nf_conn *ct;
 	__be32 orig_ip;
 
 	ct = nf_ct_get(skb_in, &ctinfo);
-	if (!ct || !(ct->status & IPS_SRC_NAT)) {
+	if (!ct || !(READ_ONCE(ct->status) & IPS_NAT_MASK)) {
 		__icmp_send(skb_in, type, code, info, &opts);
 		return;
 	}
@@ -814,7 +815,8 @@ void icmp_ndo_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		goto out;
 
 	orig_ip = ip_hdr(skb_in)->saddr;
-	ip_hdr(skb_in)->saddr = ct->tuplehash[0].tuple.src.u3.ip;
+	dir = CTINFO2DIR(ctinfo);
+	ip_hdr(skb_in)->saddr = ct->tuplehash[dir].tuple.src.u3.ip;
 	__icmp_send(skb_in, type, code, info, &opts);
 	ip_hdr(skb_in)->saddr = orig_ip;
 out:
@@ -825,7 +827,7 @@ EXPORT_SYMBOL(icmp_ndo_send);
 
 static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
 {
-	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const struct net_protocol *ipprot;
 	int protocol = iph->protocol;
 
@@ -846,10 +848,12 @@ static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
 
 static bool icmp_tag_validation(int proto)
 {
+	const struct net_protocol *ipprot;
 	bool ok;
 
 	rcu_read_lock();
-	ok = rcu_dereference(inet_protos[proto])->icmp_strict_tag_validation;
+	ipprot = rcu_dereference(inet_protos[proto]);
+	ok = ipprot ? ipprot->icmp_strict_tag_validation : false;
 	rcu_read_unlock();
 	return ok;
 }
@@ -906,7 +910,7 @@ static bool icmp_unreach(struct sk_buff *skb)
 			case 3:
 				if (!icmp_tag_validation(iph->protocol))
 					goto out;
-				/* fall through */
+				fallthrough;
 			case 0:
 				info = ntohs(icmph->un.frag.mtu);
 			}
@@ -1176,9 +1180,9 @@ void icmp_err(struct sk_buff *skb, u32 info)
 	}
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED)
-		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_ICMP, 0);
+		ipv4_update_pmtu(skb, net, info, 0, IPPROTO_ICMP);
 	else if (type == ICMP_REDIRECT)
-		ipv4_redirect(skb, net, 0, 0, IPPROTO_ICMP, 0);
+		ipv4_redirect(skb, net, 0, IPPROTO_ICMP);
 }
 
 /*

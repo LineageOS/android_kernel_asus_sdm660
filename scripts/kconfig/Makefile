@@ -108,7 +108,7 @@ configfiles=$(wildcard $(srctree)/kernel/configs/$@ $(srctree)/arch/$(SRCARCH)/c
 %.config: $(obj)/conf
 	$(if $(call configfiles),, $(error No configuration exists for this target on this architecture))
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh -m .config $(configfiles)
-	+$(Q)yes "" | $(MAKE) -f $(srctree)/Makefile oldconfig
+	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
 
 PHONY += kvmconfig
 kvmconfig: kvm_guest.config
@@ -167,8 +167,8 @@ hostprogs-y := conf
 targets		+= zconf.lex.c
 
 # generated files seem to need this to find local include files
-HOSTCFLAGS_zconf.lex.o	:= -I$(src)
-HOSTCFLAGS_zconf.tab.o	:= -I$(src)
+HOSTCFLAGS_zconf.lex.o	:= -I $(srctree)/$(src)
+HOSTCFLAGS_zconf.tab.o	:= -I $(srctree)/$(src)
 
 # nconf: Used for the nconfig target based on ncurses
 hostprogs-y	+= nconf

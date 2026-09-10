@@ -325,7 +325,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			ctx->seen |= SEEN_XREG | SEEN_MEM | (1<<(K & 0xf));
 			break;
 		case BPF_LD | BPF_W | BPF_LEN: /*	A = skb->len; */
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
+			BUILD_BUG_ON(sizeof_field(struct sk_buff, len) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff, len));
 			break;
 		case BPF_LDX | BPF_W | BPF_ABS: /* A = *((u32 *)(seccomp_data + K)); */
@@ -337,16 +337,16 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 
 			/*** Ancillary info loads ***/
 		case BPF_ANC | SKF_AD_PROTOCOL: /* A = ntohs(skb->protocol); */
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
+			BUILD_BUG_ON(sizeof_field(struct sk_buff,
 						  protocol) != 2);
 			PPC_NTOHS_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							    protocol));
 			break;
 		case BPF_ANC | SKF_AD_IFINDEX:
 		case BPF_ANC | SKF_AD_HATYPE:
-			BUILD_BUG_ON(FIELD_SIZEOF(struct net_device,
+			BUILD_BUG_ON(sizeof_field(struct net_device,
 						ifindex) != 4);
-			BUILD_BUG_ON(FIELD_SIZEOF(struct net_device,
+			BUILD_BUG_ON(sizeof_field(struct net_device,
 						type) != 2);
 			PPC_LL_OFFS(r_scratch1, r_skb, offsetof(struct sk_buff,
 								dev));
@@ -369,31 +369,30 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 
 			break;
 		case BPF_ANC | SKF_AD_MARK:
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
+			BUILD_BUG_ON(sizeof_field(struct sk_buff, mark) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  mark));
 			break;
 		case BPF_ANC | SKF_AD_RXHASH:
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
+			BUILD_BUG_ON(sizeof_field(struct sk_buff, hash) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  hash));
 			break;
 		case BPF_ANC | SKF_AD_VLAN_TAG:
-		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
-			BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
+			BUILD_BUG_ON(sizeof_field(struct sk_buff, vlan_tci) != 2);
 
 			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  vlan_tci));
-			if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
-				PPC_ANDI(r_A, r_A, ~VLAN_TAG_PRESENT);
-			} else {
-				PPC_ANDI(r_A, r_A, VLAN_TAG_PRESENT);
-				PPC_SRWI(r_A, r_A, 12);
-			}
+			break;
+		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
+			PPC_LBZ_OFFS(r_A, r_skb, PKT_VLAN_PRESENT_OFFSET());
+			if (PKT_VLAN_PRESENT_BIT)
+				PPC_SRWI(r_A, r_A, PKT_VLAN_PRESENT_BIT);
+			if (PKT_VLAN_PRESENT_BIT < 7)
+				PPC_ANDI(r_A, r_A, 1);
 			break;
 		case BPF_ANC | SKF_AD_QUEUE:
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
+			BUILD_BUG_ON(sizeof_field(struct sk_buff,
 						  queue_mapping) != 2);
 			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  queue_mapping));

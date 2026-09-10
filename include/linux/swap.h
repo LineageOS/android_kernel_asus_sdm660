@@ -311,17 +311,12 @@ void *workingset_eviction(struct address_space *mapping, struct page *page);
 void workingset_refault(struct page *page, void *shadow);
 void workingset_activation(struct page *page);
 
-/* Do not use directly, use workingset_lookup_update */
-void workingset_update_node(struct radix_tree_node *node);
-
-/* Returns workingset_update_node() if the mapping has shadow entries. */
-#define workingset_lookup_update(mapping)				\
-({									\
-	radix_tree_update_node_t __helper = workingset_update_node;	\
-	if (dax_mapping(mapping) || shmem_mapping(mapping))		\
-		__helper = NULL;					\
-	__helper;							\
-})
+/* Only track the nodes of mappings with shadow entries */
+void workingset_update_node(struct xa_node *node);
+#define mapping_set_update(xas, mapping) do {				\
+	if (!dax_mapping(mapping) && !shmem_mapping(mapping))		\
+		xas_set_update(xas, workingset_update_node);		\
+} while (0)
 
 /* linux/mm/page_alloc.c */
 extern unsigned long totalram_pages;
@@ -349,14 +344,8 @@ extern void deactivate_file_page(struct page *page);
 extern void mark_page_lazyfree(struct page *page);
 extern void swap_setup(void);
 
-extern void __lru_cache_add_active_or_unevictable(struct page *page,
-						unsigned long vma_flags);
-
-static inline void lru_cache_add_active_or_unevictable(struct page *page,
-						struct vm_area_struct *vma)
-{
-	return __lru_cache_add_active_or_unevictable(page, vma->vm_flags);
-}
+extern void lru_cache_add_active_or_unevictable(struct page *page,
+						struct vm_area_struct *vma);
 
 /* linux/mm/vmscan.c */
 extern unsigned long zone_reclaimable_pages(struct zone *zone);

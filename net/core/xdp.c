@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* net/core/xdp.c
  *
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
- * Released under terms in GPL version 2.  See COPYING.
  */
 #include <linux/bpf.h>
 #include <linux/filter.h>
@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/rhashtable.h>
+#include <linux/bug.h>
 #include <net/page_pool.h>
 
 #include <net/xdp.h>
@@ -45,7 +46,7 @@ static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
 	const u32 *k = data;
 	const u32 key = *k;
 
-	BUILD_BUG_ON(FIELD_SIZEOF(struct xdp_mem_allocator, mem.id)
+	BUILD_BUG_ON(sizeof_field(struct xdp_mem_allocator, mem.id)
 		     != sizeof(u32));
 
 	/* Use cyclic increasing ID as direct hash key */
@@ -65,7 +66,7 @@ static const struct rhashtable_params mem_id_rht_params = {
 	.nelem_hint = 64,
 	.head_offset = offsetof(struct xdp_mem_allocator, node),
 	.key_offset  = offsetof(struct xdp_mem_allocator, mem.id),
-	.key_len = FIELD_SIZEOF(struct xdp_mem_allocator, mem.id),
+	.key_len = sizeof_field(struct xdp_mem_allocator, mem.id),
 	.max_size = MEM_ID_MAX,
 	.min_size = 8,
 	.automatic_shrinking = true,
@@ -368,6 +369,21 @@ void xdp_return_buff(struct xdp_buff *xdp)
 }
 EXPORT_SYMBOL_GPL(xdp_return_buff);
 
+/* Only called for MEM_TYPE_PAGE_POOL see xdp.h */
+void __xdp_release_frame(void *data, struct xdp_mem_info *mem)
+{
+	struct xdp_mem_allocator *xa;
+	struct page *page;
+
+	rcu_read_lock();
+	xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
+	page = virt_to_head_page(data);
+	if (xa)
+		page_pool_release_page(xa->page_pool, page);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(__xdp_release_frame);
+
 int xdp_attachment_query(struct xdp_attachment_info *info,
 			 struct netdev_bpf *bpf)
 {
@@ -398,3 +414,93 @@ void xdp_attachment_setup(struct xdp_attachment_info *info,
 	info->flags = bpf->flags;
 }
 EXPORT_SYMBOL_GPL(xdp_attachment_setup);
+
+struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp)
+{
+	unsigned int metasize, headroom, totsize;
+	void *addr, *data_to_copy;
+	struct xdp_frame *xdpf;
+	struct page *page;
+
+	/* Clone into a MEM_TYPE_PAGE_ORDER0 xdp_frame. */
+	metasize = xdp_data_meta_unsupported(xdp) ? 0 :
+		   xdp->data - xdp->data_meta;
+	headroom = xdp->data - xdp->data_hard_start;
+	totsize = xdp->data_end - xdp->data + metasize;
+
+	if (sizeof(*xdpf) + totsize > PAGE_SIZE)
+		return NULL;
+
+	page = dev_alloc_page();
+	if (!page)
+		return NULL;
+
+	addr = page_to_virt(page);
+	xdpf = addr;
+	memset(xdpf, 0, sizeof(*xdpf));
+
+	addr += sizeof(*xdpf);
+	data_to_copy = metasize ? xdp->data_meta : xdp->data;
+	memcpy(addr, data_to_copy, totsize);
+
+	xdpf->data = addr + metasize;
+	xdpf->len = totsize - metasize;
+	xdpf->headroom = 0;
+	xdpf->metasize = metasize;
+	xdpf->mem.type = MEM_TYPE_PAGE_ORDER0;
+
+	xdp_return_buff(xdp);
+	return xdpf;
+}
+EXPORT_SYMBOL_GPL(xdp_convert_zc_to_xdp_frame);
+
+/* Used by XDP_WARN macro, to avoid inlining WARN() in fast-path */
+void xdp_warn(const char *msg, const char *func, const int line)
+{
+	WARN(1, "XDP_WARN: %s(line:%d): %s\n", func, line, msg);
+};
+EXPORT_SYMBOL_GPL(xdp_warn);
+
+struct sk_buff *__xdp_build_skb_from_frame(struct xdp_frame *xdpf,
+					   struct sk_buff *skb,
+					   struct net_device *dev)
+{
+	unsigned int headroom, frame_size;
+	void *hard_start;
+
+	/* Part of headroom was reserved to xdpf */
+	headroom = sizeof(*xdpf) + xdpf->headroom;
+
+	/* Memory size backing xdp_frame data already have reserved
+	 * room for build_skb to place skb_shared_info in tailroom.
+	 */
+	frame_size = xdpf->frame_sz;
+
+	hard_start = xdpf->data - headroom;
+	skb = build_skb_around(skb, hard_start, frame_size);
+	if (unlikely(!skb))
+		return NULL;
+
+	skb_reserve(skb, headroom);
+	__skb_put(skb, xdpf->len);
+	if (xdpf->metasize)
+		skb_metadata_set(skb, xdpf->metasize);
+
+	/* Essential SKB info: protocol and skb->dev */
+	skb->protocol = eth_type_trans(skb, dev);
+
+	/* Optional SKB info, currently missing:
+	 * - HW checksum info		(skb->ip_summed)
+	 * - HW RX hash			(skb_set_hash)
+	 * - RX ring dev queue index	(skb_record_rx_queue)
+	 */
+
+	/* Until page_pool get SKB return path, release DMA here */
+	xdp_release_frame(xdpf);
+
+	/* Allow SKB to reuse area used by xdp_frame */
+	xdp_scrub_frame(xdpf);
+
+	return skb;
+}
+EXPORT_SYMBOL_GPL(__xdp_build_skb_from_frame);

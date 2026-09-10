@@ -2606,13 +2606,8 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 	bnxt_init_rxbd_pages(ring, type);
 
 	if (BNXT_RX_PAGE_MODE(bp) && bp->xdp_prog) {
-		rxr->xdp_prog = bpf_prog_add(bp->xdp_prog, 1);
-		if (IS_ERR(rxr->xdp_prog)) {
-			int rc = PTR_ERR(rxr->xdp_prog);
-
-			rxr->xdp_prog = NULL;
-			return rc;
-		}
+		bpf_prog_add(bp->xdp_prog, 1);
+		rxr->xdp_prog = bp->xdp_prog;
 	}
 	prod = rxr->rx_prod;
 	for (i = 0; i < bp->rx_ring_size; i++) {
@@ -3427,6 +3422,9 @@ static int bnxt_cp_num_to_irq_num(struct bnxt *bp, int n)
 static void bnxt_disable_int_sync(struct bnxt *bp)
 {
 	int i;
+
+	if (!bp->irq_tbl || !bp->bnapi)
+		return;
 
 	atomic_inc(&bp->intr_sem);
 

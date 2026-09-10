@@ -29,6 +29,8 @@
 #include <net/flow.h>
 #include <net/inet_sock.h>
 #include <net/ip_fib.h>
+#include <net/arp.h>
+#include <net/ndisc.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
@@ -59,8 +61,12 @@ struct rtable {
 
 	int			rt_iif;
 
+	u8			rt_gw_family;
 	/* Info on neighbour */
-	__be32			rt_gateway;
+	union {
+		__be32		rt_gw4;
+		struct in6_addr	rt_gw6;
+	};
 
 	/* Miscellaneous cached information */
 	u32			rt_mtu_locked:1,
@@ -82,8 +88,8 @@ static inline bool rt_is_output_route(const struct rtable *rt)
 
 static inline __be32 rt_nexthop(const struct rtable *rt, __be32 daddr)
 {
-	if (rt->rt_gateway)
-		return rt->rt_gateway;
+	if (rt->rt_gw_family == AF_INET)
+		return rt->rt_gw4;
 	return daddr;
 }
 
@@ -183,6 +189,10 @@ int ip_route_input_rcu(struct sk_buff *skb, __be32 dst, __be32 src,
 		       u8 tos, struct net_device *devin,
 		       struct fib_result *res);
 
+int ip_route_use_hint(struct sk_buff *skb, __be32 dst, __be32 src,
+		      u8 tos, struct net_device *devin,
+		      const struct sk_buff *hint);
+
 static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 				 u8 tos, struct net_device *devin)
 {
@@ -201,10 +211,9 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 }
 
 void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu, int oif,
-		      u32 mark, u8 protocol, int flow_flags);
+		      u8 protocol);
 void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu);
-void ipv4_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
-		   u8 protocol, int flow_flags);
+void ipv4_redirect(struct sk_buff *skb, struct net *net, int oif, u8 protocol);
 void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk);
 void ip_rt_send_redirect(struct sk_buff *skb);
 
@@ -220,7 +229,8 @@ int ip_rt_ioctl(struct net *, unsigned int cmd, struct rtentry *rt);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
 struct rtable *rt_dst_alloc(struct net_device *dev,
 			     unsigned int flags, u16 type,
-			     bool nopolicy, bool noxfrm, bool will_cache);
+			     bool nopolicy, bool noxfrm);
+struct rtable *rt_dst_clone(struct net_device *dev, struct rtable *rt);
 
 struct in_ifaddr;
 void fib_add_ifaddr(struct in_ifaddr *);
@@ -229,6 +239,10 @@ void fib_modify_prefix_metric(struct in_ifaddr *ifa, u32 new_metric);
 
 void rt_add_uncached_list(struct rtable *rt);
 void rt_del_uncached_list(struct rtable *rt);
+
+int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
+		       u32 table_id, struct fib_info *fi,
+		       int *fa_index, int fa_start, unsigned int flags);
 
 static inline void ip_rt_put(struct rtable *rt)
 {
@@ -346,6 +360,36 @@ static inline int ip4_dst_hoplimit(const struct dst_entry *dst)
 	if (hoplimit == 0)
 		hoplimit = net->ipv4.sysctl_ip_default_ttl;
 	return hoplimit;
+}
+
+static inline struct neighbour *ip_neigh_gw4(struct net_device *dev,
+					     __be32 daddr)
+{
+	struct neighbour *neigh;
+
+	neigh = __ipv4_neigh_lookup_noref(dev, (__force u32)daddr);
+	if (unlikely(!neigh))
+		neigh = __neigh_create(&arp_tbl, &daddr, dev, false);
+
+	return neigh;
+}
+
+static inline struct neighbour *ip_neigh_for_gw(struct rtable *rt,
+						struct sk_buff *skb,
+						bool *is_v6gw)
+{
+	struct net_device *dev = rt->dst.dev;
+	struct neighbour *neigh;
+
+	if (likely(rt->rt_gw_family == AF_INET)) {
+		neigh = ip_neigh_gw4(dev, rt->rt_gw4);
+	} else if (rt->rt_gw_family == AF_INET6) {
+		neigh = ip_neigh_gw6(dev, &rt->rt_gw6);
+		*is_v6gw = true;
+	} else {
+		neigh = ip_neigh_gw4(dev, ip_hdr(skb)->daddr);
+	}
+	return neigh;
 }
 
 #endif	/* _ROUTE_H */

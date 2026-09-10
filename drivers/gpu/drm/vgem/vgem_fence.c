@@ -63,13 +63,13 @@ static void vgem_fence_release(struct dma_fence *base)
 
 static void vgem_fence_value_str(struct dma_fence *fence, char *str, int size)
 {
-	snprintf(str, size, "%u", fence->seqno);
+	snprintf(str, size, "%llu", fence->seqno);
 }
 
 static void vgem_fence_timeline_value_str(struct dma_fence *fence, char *str,
 					  int size)
 {
-	snprintf(str, size, "%u",
+	snprintf(str, size, "%llu",
 		 dma_fence_is_signaled(fence) ? fence->seqno : 0);
 }
 
@@ -105,7 +105,7 @@ static struct dma_fence *vgem_fence_create(struct vgem_file *vfile,
 	dma_fence_init(&fence->base, &vgem_fence_ops, &fence->lock,
 		       dma_fence_context_alloc(1), 1);
 
-	timer_setup(&fence->timer, vgem_fence_timeout, 0);
+	timer_setup(&fence->timer, vgem_fence_timeout, TIMER_IRQSAFE);
 
 	/* We force the fence to expire within 10s to prevent driver hangs */
 	mod_timer(&fence->timer, jiffies + VGEM_FENCE_TIMEOUT);
@@ -193,7 +193,7 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 	reservation_object_lock(resv, NULL);
 	if (arg->flags & VGEM_FENCE_WRITE)
 		reservation_object_add_excl_fence(resv, fence);
-	else if ((ret = reservation_object_reserve_shared(resv)) == 0)
+	else if ((ret = reservation_object_reserve_shared(resv, 1)) == 0)
 		reservation_object_add_shared_fence(resv, fence);
 	reservation_object_unlock(resv);
 

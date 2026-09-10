@@ -890,15 +890,17 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 		.address = address,
 		.flags = PVMW_SYNC,
 	};
-	unsigned long start = address, end;
+	struct mmu_notifier_range range;
 	int *cleaned = arg;
 
 	/*
 	 * We have to assume the worse case ie pmd for invalidation. Note that
 	 * the page can not be free from this function.
 	 */
-	end = vma_address_end(page, vma);
-	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
+	mmu_notifier_range_init(&range, MMU_NOTIFY_UNMAP, 0, vma, vma->vm_mm,
+				address,
+				min(vma->vm_end, address + page_size(page)));
+	mmu_notifier_invalidate_range_start(&range);
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		unsigned long cstart;
@@ -950,7 +952,7 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 			(*cleaned)++;
 	}
 
-	mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
+	mmu_notifier_invalidate_range_end(&range);
 
 	return true;
 }
@@ -1138,7 +1140,7 @@ void do_page_add_anon_rmap(struct page *page,
 }
 
 /**
- * __page_add_new_anon_rmap - add pte mapping to a new anonymous page
+ * page_add_new_anon_rmap - add pte mapping to a new anonymous page
  * @page:	the page to add the mapping to
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
@@ -1148,11 +1150,12 @@ void do_page_add_anon_rmap(struct page *page,
  * This means the inc-and-test can be bypassed.
  * Page does not have to be locked.
  */
-void __page_add_new_anon_rmap(struct page *page,
+void page_add_new_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address, bool compound)
 {
 	int nr = compound ? hpage_nr_pages(page) : 1;
 
+	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
 	__SetPageSwapBacked(page);
 	if (compound) {
 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
@@ -1345,7 +1348,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	pte_t pteval;
 	struct page *subpage;
 	bool ret = true;
-	unsigned long start = address, end;
+	struct mmu_notifier_range range;
 	enum ttu_flags flags = (enum ttu_flags)arg;
 
 	/*
@@ -1378,16 +1381,18 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	 * Note that the page can not be free in this function as call of
 	 * try_to_unmap() must hold a reference on the page.
 	 */
-	end = PageKsm(page) ?
-			address + PAGE_SIZE : vma_address_end(page, vma);
+	mmu_notifier_range_init(&range, MMU_NOTIFY_UNMAP, 0, vma, vma->vm_mm,
+				address,
+				min(vma->vm_end, address + page_size(page)));
 	if (PageHuge(page)) {
 		/*
 		 * If sharing is possible, start and end will be adjusted
 		 * accordingly.
 		 */
-		adjust_range_if_pmd_sharing_possible(vma, &start, &end);
+		adjust_range_if_pmd_sharing_possible(vma, &range.start,
+						     &range.end);
 	}
-	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
+	mmu_notifier_invalidate_range_start(&range);
 
 	while (page_vma_mapped_walk(&pvmw)) {
 #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
@@ -1438,18 +1443,14 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 				 * we must flush them all.  start/end were
 				 * already adjusted above to cover this range.
 				 */
-				flush_cache_range(vma, start, end);
-				flush_tlb_range(vma, start, end);
-				mmu_notifier_invalidate_range(mm, start, end);
+				flush_cache_range(vma, range.start, range.end);
+				flush_tlb_range(vma, range.start, range.end);
+				mmu_notifier_invalidate_range(mm, range.start,
+							      range.end);
 
 				/*
-				 * The ref count of the PMD page was dropped
-				 * which is part of the way map counting
-				 * is done for shared PMDs.  Return 'true'
-				 * here.  When there is no other sharing,
-				 * huge_pmd_unshare returns false and we will
-				 * unmap the actual page and drop map count
-				 * to zero.
+				 * The PMD table was unmapped,
+				 * consequently unmapping the folio.
 				 */
 				page_vma_mapped_walk_done(&pvmw);
 				break;
@@ -1691,7 +1692,7 @@ discard:
 		put_page(page);
 	}
 
-	mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
+	mmu_notifier_invalidate_range_end(&range);
 
 	return ret;
 }

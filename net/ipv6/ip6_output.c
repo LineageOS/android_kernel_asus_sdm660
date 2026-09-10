@@ -63,8 +63,8 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *dev = dst->dev;
+	const struct in6_addr *nexthop;
 	struct neighbour *neigh;
-	struct in6_addr *nexthop;
 	int ret;
 
 	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr)) {
@@ -117,7 +117,7 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
 	if (!IS_ERR(neigh)) {
 		sock_confirm_neigh(skb, neigh);
-		ret = neigh_output(neigh, skb);
+		ret = neigh_output(neigh, skb, false);
 		rcu_read_unlock_bh();
 		return ret;
 	}
@@ -1738,7 +1738,8 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 		struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
 		u8 icmp6_type;
 
-		if (sk->sk_socket->type == SOCK_RAW && !inet_sk(sk)->hdrincl)
+		if (sk->sk_socket->type == SOCK_RAW &&
+		    !(fl6->flowi6_flags & FLOWI_FLAG_KNOWN_NH))
 			icmp6_type = fl6->fl6_icmp_type;
 		else
 			icmp6_type = icmp6_hdr(skb)->icmp6_type;

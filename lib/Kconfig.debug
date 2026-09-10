@@ -222,6 +222,14 @@ config DEBUG_INFO_DWARF4
 	  But it significantly improves the success of resolving
 	  variables in gdb on optimized code.
 
+config DEBUG_INFO_BTF
+	bool "Generate BTF typeinfo"
+	depends on DEBUG_INFO
+	help
+	  Generate deduplicated BTF type information from DWARF debug info.
+	  Turning this on expects presence of pahole tool, which will convert
+	  DWARF type info into equivalent deduplicated BTF type info.
+
 config GDB_SCRIPTS
 	bool "Provide GDB scripts for kernel debugging"
 	depends on DEBUG_INFO
@@ -749,7 +757,7 @@ config HAVE_DEBUG_STACKOVERFLOW
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL && HAVE_DEBUG_STACKOVERFLOW
-	---help---
+	help
 	  Say Y here if you want to check for overflows of kernel, IRQ
 	  and exception stacks (if your architecture uses them). This
 	  option will show detailed messages if free stack space drops
@@ -765,6 +773,7 @@ config DEBUG_STACKOVERFLOW
 	  If in doubt, say "N".
 
 source "lib/Kconfig.kasan"
+source "lib/Kconfig.kfence"
 
 endmenu # "Memory Debugging"
 
@@ -1173,6 +1182,23 @@ config PROVE_LOCKING
 	 arbitrary combination of these separate locking variants.
 
 	 For more details, see Documentation/locking/lockdep-design.txt.
+
+config PROVE_RAW_LOCK_NESTING
+	bool "Enable raw_spinlock - spinlock nesting checks"
+	depends on PROVE_LOCKING
+	default n
+	help
+	 Enable the raw_spinlock vs. spinlock nesting checks which ensure
+	 that the lock nesting rules for PREEMPT_RT enabled kernels are
+	 not violated.
+
+	 NOTE: There are known nesting problems. So if you enable this
+	 option expect lockdep splats until these problems have been fully
+	 addressed which is work in progress. This config switch allows to
+	 identify and analyze these problems. It will be removed and the
+	 check permanentely enabled once the main issues have been fixed.
+
+	 If unsure, select N.
 
 config LOCK_STAT
 	bool "Lock usage statistics"
@@ -1878,7 +1904,7 @@ config ASYNC_RAID6_TEST
 	tristate "Self test for hardware accelerated raid6 recovery"
 	depends on ASYNC_RAID6_RECOV
 	select ASYNC_MEMCPY
-	---help---
+	help
 	  This is a one-shot self test that permutes through the
 	  recovery of all the possible two disk failure scenarios for a
 	  N-disk array.  Recovery is performed with the asynchronous
@@ -1915,6 +1941,9 @@ config TEST_BITFIELD
 
 config TEST_UUID
 	tristate "Test functions located in the uuid module at runtime"
+
+config TEST_XARRAY
+	tristate "Test the XArray code at runtime"
 
 config TEST_OVERFLOW
 	tristate "Test check_*_overflow() functions at runtime"
@@ -2092,7 +2121,7 @@ endif # RUNTIME_TESTING_MENU
 config MEMTEST
 	bool "Memtest"
 	depends on HAVE_MEMBLOCK
-	---help---
+	help
 	  This option adds a kernel parameter 'memtest', which allows memtest
 	  to be set.
 	        memtest=0, mean disabled; -- default
@@ -2142,7 +2171,7 @@ config STRICT_DEVMEM
 	depends on MMU && DEVMEM
 	depends on ARCH_HAS_DEVMEM_IS_ALLOWED
 	default y if PPC || X86 || ARM64
-	---help---
+	help
 	  If this option is disabled, you allow userspace (root) access to all
 	  of memory, including kernel and userspace memory. Accidental
 	  access to this is obviously disastrous, but specific access can
@@ -2160,7 +2189,7 @@ config STRICT_DEVMEM
 config IO_STRICT_DEVMEM
 	bool "Filter I/O access to /dev/mem"
 	depends on STRICT_DEVMEM
-	---help---
+	help
 	  If this option is disabled, you allow userspace (root) access to all
 	  io-memory regardless of whether a driver is actively using that
 	  range.  Accidental access to this is obviously disastrous, but

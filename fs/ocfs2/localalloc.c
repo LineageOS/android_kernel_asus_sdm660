@@ -623,7 +623,7 @@ out:
 
 /*
  * make sure we've got at least bits_wanted contiguous bits in the
- * local alloc. You lose them when you drop i_mutex.
+ * local alloc. You lose them when you drop i_rwsem.
  *
  * We will add ourselves to the transaction passed in, but may start
  * our own in order to shift windows.
@@ -653,7 +653,7 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 
 	/*
 	 * We must double check state and allocator bits because
-	 * another process may have changed them while holding i_mutex.
+	 * another process may have changed them while holding i_rwsem.
 	 */
 	spin_lock(&osb->osb_lock);
 	if (!ocfs2_la_state_enabled(osb) ||
@@ -1026,25 +1026,6 @@ static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
 		start = bit_off + 1;
 	}
 
-	/* clear the contiguous bits until the end boundary */
-	if (count) {
-		blkno = la_start_blk +
-			ocfs2_clusters_to_blocks(osb->sb,
-					start - count);
-
-		trace_ocfs2_sync_local_to_main_free(
-				count, start - count,
-				(unsigned long long)la_start_blk,
-				(unsigned long long)blkno);
-
-		status = ocfs2_release_clusters(handle,
-				main_bm_inode,
-				main_bm_bh, blkno,
-				count);
-		if (status < 0)
-			mlog_errno(status);
-	}
-
 bail:
 	if (status)
 		mlog_errno(status);
@@ -1066,7 +1047,7 @@ enum ocfs2_la_event {
 /*
  * Given an event, calculate the size of our next local alloc window.
  *
- * This should always be called under i_mutex of the local alloc inode
+ * This should always be called under i_rwsem of the local alloc inode
  * so that local alloc disabling doesn't race with processes trying to
  * use the allocator.
  *

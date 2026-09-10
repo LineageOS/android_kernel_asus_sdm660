@@ -29,6 +29,7 @@ static inline size_t f2fs_acl_size(int count)
 static inline int f2fs_acl_count(size_t size)
 {
 	ssize_t s;
+
 	size -= sizeof(struct f2fs_acl_header);
 	s = size - 4 * sizeof(struct f2fs_acl_entry_short);
 	if (s < 0) {
@@ -45,6 +46,7 @@ static inline int f2fs_acl_count(size_t size)
 static struct posix_acl *f2fs_acl_from_disk(const char *value, size_t size)
 {
 	int i, count;
+	int err = -EINVAL;
 	struct posix_acl *acl;
 	struct f2fs_acl_header *hdr = (struct f2fs_acl_header *)value;
 	struct f2fs_acl_entry *entry = (struct f2fs_acl_entry *)(hdr + 1);
@@ -68,8 +70,11 @@ static struct posix_acl *f2fs_acl_from_disk(const char *value, size_t size)
 
 	for (i = 0; i < count; i++) {
 
-		if ((char *)entry > end)
+		if (unlikely((char *)entry +
+				sizeof(struct f2fs_acl_entry_short) > end)) {
+			err = -EFSCORRUPTED;
 			goto fail;
+		}
 
 		acl->a_entries[i].e_tag  = le16_to_cpu(entry->e_tag);
 		acl->a_entries[i].e_perm = le16_to_cpu(entry->e_perm);
@@ -84,6 +89,11 @@ static struct posix_acl *f2fs_acl_from_disk(const char *value, size_t size)
 			break;
 
 		case ACL_USER:
+			if (unlikely((char *)entry +
+					sizeof(struct f2fs_acl_entry) > end)) {
+				err = -EFSCORRUPTED;
+				goto fail;
+			}
 			acl->a_entries[i].e_uid =
 				make_kuid(&init_user_ns,
 						le32_to_cpu(entry->e_id));
@@ -91,6 +101,11 @@ static struct posix_acl *f2fs_acl_from_disk(const char *value, size_t size)
 					sizeof(struct f2fs_acl_entry));
 			break;
 		case ACL_GROUP:
+			if (unlikely((char *)entry +
+					sizeof(struct f2fs_acl_entry) > end)) {
+				err = -EFSCORRUPTED;
+				goto fail;
+			}
 			acl->a_entries[i].e_gid =
 				make_kgid(&init_user_ns,
 						le32_to_cpu(entry->e_id));
@@ -106,7 +121,7 @@ static struct posix_acl *f2fs_acl_from_disk(const char *value, size_t size)
 	return acl;
 fail:
 	posix_acl_release(acl);
-	return ERR_PTR(-EINVAL);
+	return ERR_PTR(err);
 }
 
 static void *f2fs_acl_to_disk(struct f2fs_sb_info *sbi,
@@ -160,7 +175,7 @@ static void *f2fs_acl_to_disk(struct f2fs_sb_info *sbi,
 	return (void *)f2fs_acl;
 
 fail:
-	kvfree(f2fs_acl);
+	kfree(f2fs_acl);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -190,7 +205,7 @@ static struct posix_acl *__f2fs_get_acl(struct inode *inode, int type,
 		acl = NULL;
 	else
 		acl = ERR_PTR(retval);
-	kvfree(value);
+	kfree(value);
 
 	return acl;
 }
@@ -261,7 +276,7 @@ static int __f2fs_set_acl(struct inode *inode, int type,
 
 	error = f2fs_setxattr(inode, name_index, "", value, size, ipage, 0);
 
-	kvfree(value);
+	kfree(value);
 	if (!error)
 		set_cached_acl(inode, type, acl);
 
@@ -405,7 +420,7 @@ int f2fs_init_acl(struct inode *inode, struct inode *dir, struct page *ipage,
 							struct page *dpage)
 {
 	struct posix_acl *default_acl = NULL, *acl = NULL;
-	int error = 0;
+	int error;
 
 	error = f2fs_acl_create(dir, &inode->i_mode, &default_acl, &acl, dpage);
 	if (error)

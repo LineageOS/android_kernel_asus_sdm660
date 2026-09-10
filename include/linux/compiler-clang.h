@@ -27,6 +27,29 @@
 #define __no_sanitize_address
 #endif
 
+#if __has_feature(memory_sanitizer)
+#define __SANITIZE_MEMORY__
+/*
+ * Unlike other sanitizers, KMSAN still inserts code into functions marked with
+ * no_sanitize("kernel-memory"). Using disable_sanitizer_instrumentation
+ * provides the behavior consistent with other __no_sanitize_ attributes,
+ * guaranteeing that __no_sanitize_memory functions remain uninstrumented.
+ */
+#define __no_sanitize_memory __disable_sanitizer_instrumentation
+
+/*
+ * The __no_kmsan_checks attribute ensures that a function does not produce
+ * false positive reports by:
+ *  - initializing all local variables and memory stores in this function;
+ *  - skipping all shadow checks;
+ *  - passing initialized arguments to this function's callees.
+ */
+#define __no_kmsan_checks __attribute__((no_sanitize("kernel-memory")))
+#else
+#define __no_sanitize_memory
+#define __no_kmsan_checks
+#endif
+
 /*
  * Not all versions of clang implement the the type-generic versions
  * of the builtin overflow checkers. Fortunately, clang implements
@@ -45,11 +68,9 @@
  * compilers, like ICC.
  */
 #define __must_be_array(a) BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
-#define __assume_aligned(a, ...)	\
-	__attribute__((__assume_aligned__(a, ## __VA_ARGS__)))
 
 #ifdef CONFIG_CFI_CLANG
-#define __nocfi		__attribute__((no_sanitize("cfi")))
+#define __nocfi		__attribute__((__no_sanitize__("cfi")))
 #endif
 
 #ifdef CONFIG_LTO_CLANG

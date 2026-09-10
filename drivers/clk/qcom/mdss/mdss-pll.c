@@ -128,6 +128,14 @@ static int mdss_pll_resource_parse(struct platform_device *pdev,
 		pll_res->pll_interface_type = MDSS_DP_PLL_14NM;
 		pll_res->target_id = MDSS_PLL_TARGET_SDM660;
 		pll_res->revision = 2;
+	} else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_sdm630")) {
+		pll_res->pll_interface_type = MDSS_DSI_PLL_14NM;
+		pll_res->target_id = MDSS_PLL_TARGET_SDM630;
+		pll_res->revision = 2;
+	} else if (!strcmp(compatible_stream, "qcom,mdss_dp_pll_sdm630")) {
+		pll_res->pll_interface_type = MDSS_DP_PLL_14NM;
+		pll_res->target_id = MDSS_PLL_TARGET_SDM630;
+		pll_res->revision = 2;
 	} else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_12nm"))
 		pll_res->pll_interface_type = MDSS_DSI_PLL_12NM;
 	else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_28lpm"))
@@ -367,6 +375,7 @@ phy_io_error:
 res_parse_error:
 	iounmap(pll_res->pll_base);
 io_error:
+	devm_kfree(&pdev->dev, pll_res);
 error:
 	return rc;
 }
@@ -388,6 +397,7 @@ static int mdss_pll_remove(struct platform_device *pdev)
 		iounmap(pll_res->gdsc_base);
 	mdss_pll_resource_release(pdev, pll_res);
 	iounmap(pll_res->pll_base);
+	devm_kfree(&pdev->dev, pll_res);
 	return 0;
 }
 
@@ -398,6 +408,8 @@ static const struct of_device_id mdss_pll_dt_match[] = {
 	{.compatible = "qcom,mdss_dp_pll_sdm660"},
 	{.compatible = "qcom,mdss_dsi_pll_12nm"},
 	{.compatible = "qcom,mdss_dsi_pll_28lpm"},
+	{.compatible = "qcom,mdss_dsi_pll_sdm630"},
+	{.compatible = "qcom,mdss_dp_pll_sdm630"},
 	{}
 };
 

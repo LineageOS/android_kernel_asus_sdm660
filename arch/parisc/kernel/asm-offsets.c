@@ -34,7 +34,7 @@
 #include <linux/hardirq.h>
 #include <linux/kbuild.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/pdc.h>
@@ -275,6 +275,8 @@ int main(void)
 	BLANK();
 	DEFINE(TIF_BLOCKSTEP_PA_BIT, 31-TIF_BLOCKSTEP);
 	DEFINE(TIF_SINGLESTEP_PA_BIT, 31-TIF_SINGLESTEP);
+	DEFINE(TIF_32BIT_PA_BIT, 31-TIF_32BIT);
+
 	BLANK();
 	DEFINE(ASM_PMD_SHIFT, PMD_SHIFT);
 	DEFINE(ASM_PGDIR_SHIFT, PGDIR_SHIFT);
