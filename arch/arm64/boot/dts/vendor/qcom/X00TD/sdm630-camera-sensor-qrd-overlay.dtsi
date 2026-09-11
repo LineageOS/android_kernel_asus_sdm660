@@ -142,11 +142,11 @@
 		pinctrl-1 = <&cam_sensor_mclk3_suspend
 				&cam_sensor_rear2_suspend>;
 		gpios = <&tlmm 35 0>,
-			<&tlmm 48 0>,
-			<&pm660l_gpios 4 0>;
+			<&tlmm 48 0>;
+		qcom,gpio-req-tbl-num = <0 1>;
+		qcom,gpio-req-tbl-flags = <1 0>;
 		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
-					"CAM_RESET2",
-					"CAM_VDIG2";
+					"CAM_RESET2";
 		qcom,sensor-position = <0>;
 		clocks = <&clock_mmss MCLK3_CLK_SRC>,
 			<&clock_mmss MMSS_CAMSS_MCLK3_CLK>;
